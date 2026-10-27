@@ -1,0 +1,1133 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Lab: Batch Pipelines in Cloud Data Fusion</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        :root {
+            --bg: #0b1120;
+            --panel: #1e293b;
+            --panel-2: #334155;
+            --text: #f1f5f9;
+            --muted: #94a3b8;
+            --accent: #4285f4;
+            --gcp-yellow: #fbbc04;
+            --gcp-green: #34a853;
+            --gcp-red: #ea4335;
+            --cdf: #ff6d00;         /* Cloud Data Fusion orange */
+            --wrangler: #8b5cf6;    /* Wrangler purple */
+            --bq: #4285f4;
+            --gcs: #fbbc04;
+            --border: #334155;
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+
+        body {
+            font-family: 'Segoe UI', Roboto, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            min-height: 100vh;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        header { text-align: center; margin-bottom: 20px; max-width: 900px; }
+        h1 { font-size: 1.5rem; font-weight: 300; letter-spacing: 1px; margin-bottom: 8px; }
+        h1 i { color: var(--cdf); }
+        p.subtitle { color: var(--muted); font-size: 0.88rem; }
+        p.subtitle code { color: var(--gcp-yellow); background: var(--panel); padding: 2px 6px; border-radius: 4px; }
+
+        .controls {
+            display: flex;
+            gap: 9px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+
+        .btn {
+            padding: 11px 15px;
+            border: 2px solid var(--border);
+            background: var(--panel);
+            color: var(--text);
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 0.8rem;
+            font-weight: 600;
+            transition: all 0.25s;
+            display: flex;
+            align-items: center;
+            gap: 7px;
+        }
+
+        .btn:hover:not(:disabled) { transform: translateY(-2px); border-color: var(--cdf); }
+        .btn:disabled { opacity: 0.35; cursor: not-allowed; }
+        .btn.active { border-color: var(--cdf); background: rgba(255,109,0,0.15); box-shadow: 0 0 15px rgba(255,109,0,0.2); }
+        .btn.done { border-color: var(--gcp-green); background: rgba(52,168,83,0.12); color: var(--gcp-green); }
+
+        .btn i { font-size: 0.95rem; }
+
+        .workspace {
+            display: grid;
+            grid-template-columns: 290px 1fr 370px;
+            gap: 18px;
+            width: 100%;
+            max-width: 1600px;
+            align-items: start;
+        }
+
+        .panel {
+            background: var(--panel);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 16px;
+        }
+
+        .panel-title {
+            font-size: 0.72rem;
+            text-transform: uppercase;
+            letter-spacing: 1.5px;
+            color: var(--muted);
+            margin-bottom: 14px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .resource-item {
+            background: var(--panel-2);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 9px 11px;
+            font-size: 0.75rem;
+            font-family: 'Courier New', monospace;
+            color: var(--muted);
+            display: flex;
+            flex-direction: column;
+            gap: 3px;
+            margin-bottom: 7px;
+            transition: all 0.4s ease;
+            opacity: 0.45;
+        }
+
+        .resource-item.used {
+            opacity: 1;
+            border-color: var(--cdf);
+            color: var(--text);
+            background: rgba(255,109,0,0.08);
+        }
+
+        .resource-item .name { display: flex; align-items: center; gap: 6px; }
+        .resource-item .name i { font-size: 0.82rem; }
+        .resource-item .detail { font-size: 0.65rem; color: var(--cdf); font-weight: bold; word-break: break-all; }
+        .resource-item .status { font-size: 0.62rem; color: var(--gcp-green); }
+
+        .canvas {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+
+        .stage-card {
+            background: var(--panel);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 16px;
+            opacity: 0.3;
+            transform: translateY(8px);
+            transition: all 0.5s ease;
+        }
+
+        .stage-card.active {
+            opacity: 1;
+            transform: translateY(0);
+            border-color: var(--cdf);
+            box-shadow: 0 0 25px rgba(255,109,0,0.12);
+        }
+
+        .stage-card h2 {
+            font-size: 0.92rem;
+            margin-bottom: 12px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .stage-card h2 .tag {
+            font-size: 0.58rem;
+            padding: 3px 8px;
+            border-radius: 10px;
+            background: var(--panel-2);
+            color: var(--muted);
+            font-family: monospace;
+            margin-left: auto;
+        }
+
+        /* CSV preview */
+        .csv-preview {
+            display: none;
+            background: #000;
+            border-radius: 8px;
+            padding: 10px;
+            font-family: 'Courier New', monospace;
+            font-size: 0.63rem;
+            border: 1px solid var(--border);
+            margin-top: 8px;
+            overflow-x: auto;
+            max-height: 200px;
+            overflow-y: auto;
+        }
+        .csv-preview.show { display: block; animation: fadeIn 0.4s ease; }
+        .csv-row { white-space: nowrap; padding: 1px 0; color: var(--muted); }
+        .csv-row.header { color: var(--gcp-yellow); font-weight: bold; border-bottom: 1px solid var(--border); padding-bottom: 3px; margin-bottom: 3px; }
+
+        /* Wrangler recipe */
+        .wrangler-box {
+            display: none;
+            background: #0d1117;
+            border-radius: 8px;
+            padding: 12px;
+            font-family: 'Courier New', monospace;
+            font-size: 0.68rem;
+            border: 1px solid var(--wrangler);
+            margin-top: 8px;
+        }
+        .wrangler-box.show { display: block; animation: fadeIn 0.4s ease; }
+        .wrangler-box .w-title {
+            color: var(--wrangler);
+            margin-bottom: 8px;
+            font-size: 0.65rem;
+            padding-bottom: 6px;
+            border-bottom: 1px solid rgba(139,92,246,0.3);
+            display: flex;
+            justify-content: space-between;
+        }
+        .wrangler-step {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 5px 0;
+            color: var(--text);
+            font-size: 0.7rem;
+            opacity: 0;
+            animation: fadeIn 0.3s ease forwards;
+        }
+        .wrangler-step .step-num {
+            width: 18px; height: 18px;
+            border-radius: 50%;
+            background: var(--wrangler);
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.6rem;
+            font-weight: bold;
+            flex-shrink: 0;
+        }
+        .wrangler-step .directive {
+            color: var(--gcp-yellow);
+            font-family: monospace;
+            font-weight: bold;
+        }
+
+        /* Pipeline visual */
+        .pipeline-visual {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 5px;
+            padding: 15px 0;
+            position: relative;
+            flex-wrap: wrap;
+        }
+
+        .pipeline-node {
+            flex: 1;
+            min-width: 100px;
+            text-align: center;
+            padding: 12px 8px;
+            border-radius: 10px;
+            font-size: 0.7rem;
+            font-weight: 600;
+            border: 2px solid var(--border);
+            background: var(--panel-2);
+            color: var(--muted);
+            opacity: 0;
+            transform: scale(0.85);
+            transition: all 0.5s ease;
+            position: relative;
+        }
+
+        .pipeline-node.show { opacity: 1; transform: scale(1); }
+        .pipeline-node.source { border-color: var(--gcs); color: #fde68a; background: rgba(251,188,4,0.1); }
+        .pipeline-node.transform { border-color: var(--wrangler); color: #c4b5fd; background: rgba(139,92,246,0.1); }
+        .pipeline-node.sink { border-color: var(--bq); color: #93c5fd; background: rgba(66,133,244,0.1); }
+
+        .pipeline-node .sub { display: block; font-size: 0.58rem; font-weight: normal; color: var(--muted); margin-top: 3px; font-family: monospace; }
+
+        .pipeline-arrow {
+            color: var(--border);
+            font-size: 1rem;
+            opacity: 0;
+            transition: opacity 0.4s ease;
+        }
+        .pipeline-arrow.show { opacity: 1; color: var(--cdf); }
+
+        /* Node properties */
+        .node-props {
+            display: none;
+            background: #0d1117;
+            border-radius: 8px;
+            padding: 10px;
+            font-family: 'Courier New', monospace;
+            font-size: 0.68rem;
+            border: 1px solid var(--border);
+            margin-top: 8px;
+        }
+        .node-props.show { display: block; animation: fadeIn 0.4s ease; }
+        .node-props .prop-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 3px 0;
+            border-bottom: 1px solid rgba(51,65,85,0.3);
+        }
+        .node-props .prop-row:last-child { border-bottom: none; }
+        .node-props .prop-key { color: var(--muted); }
+        .node-props .prop-val { color: var(--gcp-yellow); font-weight: bold; }
+
+        /* Job progress */
+        .job-progress {
+            display: none;
+            margin-top: 10px;
+            background: var(--panel-2);
+            border-radius: 8px;
+            padding: 12px;
+        }
+        .job-progress.show { display: block; }
+        .progress-step {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-size: 0.7rem;
+            padding: 4px 0;
+            color: var(--muted);
+            font-family: monospace;
+        }
+        .progress-step .dot {
+            width: 9px; height: 9px;
+            border-radius: 50%;
+            background: var(--border);
+            flex-shrink: 0;
+            transition: all 0.3s;
+        }
+        .progress-step.ok .dot { background: var(--gcp-green); box-shadow: 0 0 8px var(--gcp-green); }
+        .progress-step.ok { color: var(--text); }
+        .progress-step.running .dot { background: var(--cdf); animation: pulse 1s infinite; }
+        .progress-step.running { color: var(--cdf); }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        /* Preview output */
+        .preview-output {
+            display: none;
+            margin-top: 8px;
+            background: #000;
+            border-radius: 8px;
+            padding: 10px;
+            font-family: 'Courier New', monospace;
+            font-size: 0.63rem;
+            border: 1px solid var(--border);
+            max-height: 180px;
+            overflow: auto;
+        }
+        .preview-output.show { display: block; animation: fadeIn 0.4s ease; }
+        .preview-output .p-header {
+            color: var(--gcp-green);
+            margin-bottom: 6px;
+            font-size: 0.65rem;
+            padding-bottom: 4px;
+            border-bottom: 1px solid var(--border);
+        }
+        .prev-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        .prev-table th {
+            background: var(--panel-2);
+            color: var(--muted);
+            font-size: 0.58rem;
+            padding: 4px 5px;
+            text-align: left;
+        }
+        .prev-table td {
+            padding: 3px 5px;
+            border-bottom: 1px solid rgba(51,65,85,0.3);
+            color: #93c5fd;
+            white-space: nowrap;
+        }
+        .prev-table td.num { color: var(--gcp-yellow); }
+
+        /* BigQuery result */
+        .bq-result {
+            display: none;
+            margin-top: 8px;
+            background: #000;
+            border-radius: 8px;
+            padding: 12px;
+            font-family: 'Courier New', monospace;
+            font-size: 0.65rem;
+            border: 1px solid var(--border);
+        }
+        .bq-result.show { display: block; animation: fadeIn 0.4s ease; }
+        .bq-result .r-header {
+            display: flex;
+            justify-content: space-between;
+            color: var(--muted);
+            margin-bottom: 8px;
+            font-size: 0.62rem;
+            padding-bottom: 6px;
+            border-bottom: 1px solid var(--border);
+        }
+        .bq-result .r-header .count { color: var(--gcp-green); }
+
+        .console {
+            font-family: 'Courier New', monospace;
+            font-size: 0.72rem;
+            background: #000;
+            border-radius: 8px;
+            padding: 14px;
+            height: 100%;
+            min-height: 500px;
+            max-height: 820px;
+            overflow-y: auto;
+            border: 1px solid var(--border);
+        }
+
+        .log-line { margin-bottom: 5px; line-height: 1.45; animation: fadeIn 0.3s ease; word-wrap: break-word; }
+        .log-line.cmd { color: var(--gcp-green); font-weight: bold; }
+        .log-line.info { color: var(--muted); }
+        .log-line.success { color: var(--gcp-green); }
+        .log-line.warn { color: var(--gcp-yellow); }
+        .log-line.error { color: var(--gcp-red); }
+        .log-line.key { color: #93c5fd; }
+        .log-line.cdf { color: var(--cdf); }
+        .log-line.wrangler { color: #c4b5fd; }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateX(-5px); }
+            to { opacity: 1; transform: translateX(0); }
+        }
+
+        @media (max-width: 1250px) {
+            .workspace { grid-template-columns: 1fr; }
+            .pipeline-visual { flex-wrap: wrap; }
+            .pipeline-arrow { display: none; }
+        }
+
+        .score-bar {
+            margin-top: 20px;
+            display: flex;
+            gap: 20px;
+            align-items: center;
+            background: var(--panel);
+            padding: 12px 24px;
+            border-radius: 10px;
+            border: 1px solid var(--border);
+            font-size: 0.85rem;
+        }
+        .score-bar .score-item { display: flex; align-items: center; gap: 8px; }
+        .score-bar .score-item i { color: var(--gcp-yellow); }
+        .score-bar .score-val { color: var(--gcp-green); font-weight: bold; font-family: monospace; }
+    </style>
+</head>
+<body>
+
+    <header>
+        <h1><i class="fa-solid fa-diagram-project"></i> Building Batch Pipelines in Cloud Data Fusion</h1>
+        <p class="subtitle">Lab GSP807 · Pipeline Studio · Wrangler · CSV → BigQuery · Región: <code>us-central1</code></p>
+    </header>
+
+    <div class="controls">
+        <button class="btn" id="btnTask1" onclick="runTask1()">
+            <i class="fa-solid fa-cloud-arrow-up"></i> Task 1 · Cargar datos
+        </button>
+        <button class="btn" id="btnTask2" onclick="runTask2()" disabled>
+            <i class="fa-solid fa-shield-halved"></i> Task 2 · Permisos IAM
+        </button>
+        <button class="btn" id="btnTask3" onclick="runTask3()" disabled>
+            <i class="fa-solid fa-wand-magic-sparkles"></i> Task 3 · Wrangler
+        </button>
+        <button class="btn" id="btnTask4" onclick="runTask4()" disabled>
+            <i class="fa-solid fa-database"></i> Task 4 · Sink BigQuery
+        </button>
+        <button class="btn" id="btnTask5" onclick="runTask5()" disabled>
+            <i class="fa-solid fa-sliders"></i> Task 5 · Configurar
+        </button>
+        <button class="btn" id="btnTask6" onclick="runTask6()" disabled>
+            <i class="fa-solid fa-play"></i> Task 6 · Probar/Deploy
+        </button>
+        <button class="btn" id="btnTask7" onclick="runTask7()" disabled>
+            <i class="fa-solid fa-circle-check"></i> Task 7 · Ver resultados
+        </button>
+        <button class="btn" id="btnReset" onclick="resetAll()" style="border-color:#ef4444;color:#fca5a5;">
+            <i class="fa-solid fa-rotate-left"></i> Reiniciar
+        </button>
+    </div>
+
+    <div class="workspace">
+
+        <!-- COLUMNA 1: RECURSOS -->
+        <div class="panel">
+            <div class="panel-title"><i class="fa-solid fa-cubes"></i> Recursos del Lab</div>
+            <div id="resourceList">
+                <div class="resource-item" data-res="project">
+                    <div class="name"><i class="fa-solid fa-diagram-project" style="color:var(--accent)"></i> Project ID</div>
+                    <div class="detail">qwiklabs-gcp-02-xxxxx</div>
+                </div>
+                <div class="resource-item" data-res="bucket">
+                    <div class="name"><i class="fa-solid fa-bucket" style="color:var(--gcs)"></i> Cloud Storage Bucket</div>
+                    <div class="detail">$GOOGLE_CLOUD_PROJECT</div>
+                    <div class="status"></div>
+                </div>
+                <div class="resource-item" data-res="csv">
+                    <div class="name"><i class="fa-solid fa-file-csv" style="color:var(--gcp-yellow)"></i> titanic.csv</div>
+                    <div class="detail">893 registros</div>
+                    <div class="status"></div>
+                </div>
+                <div class="resource-item" data-res="cdf">
+                    <div class="name"><i class="fa-solid fa-fire" style="color:var(--cdf)"></i> Data Fusion Instance</div>
+                    <div class="detail">ready</div>
+                    <div class="status"></div>
+                </div>
+                <div class="resource-item" data-res="iam1">
+                    <div class="name"><i class="fa-solid fa-shield" style="color:var(--gcp-green)"></i> IAM: CDF API Agent</div>
+                    <div class="detail">compute@developer</div>
+                    <div class="status"></div>
+                </div>
+                <div class="resource-item" data-res="iam2">
+                    <div class="name"><i class="fa-solid fa-shield" style="color:var(--gcp-green)"></i> IAM: Service Account User</div>
+                    <div class="detail">gcp-sa-datafusion</div>
+                    <div class="status"></div>
+                </div>
+                <div class="resource-item" data-res="wrangler">
+                    <div class="name"><i class="fa-solid fa-wand-magic-sparkles" style="color:var(--wrangler)"></i> Wrangler Recipe</div>
+                    <div class="detail">parse + drop</div>
+                    <div class="status"></div>
+                </div>
+                <div class="resource-item" data-res="pipeline">
+                    <div class="name"><i class="fa-solid fa-diagram-project" style="color:var(--cdf)"></i> Pipeline</div>
+                    <div class="detail">ETL-batch-pipeline</div>
+                    <div class="status"></div>
+                </div>
+                <div class="resource-item" data-res="bqtable">
+                    <div class="name"><i class="fa-solid fa-table" style="color:var(--bq)"></i> BigQuery Table</div>
+                    <div class="detail">demo.titanic</div>
+                    <div class="status"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- COLUMNA 2: CANVAS -->
+        <div class="canvas">
+
+            <!-- Task 1: CSV preview -->
+            <div class="stage-card" id="stageCSV">
+                <h2><i class="fa-solid fa-file-csv" style="color:var(--gcp-yellow)"></i> CSV fuente: titanic.csv <span class="tag">Task 1</span></h2>
+                <div class="csv-preview" id="csvPreview"></div>
+            </div>
+
+            <!-- Task 3: Wrangler recipe -->
+            <div class="stage-card" id="stageWrangler">
+                <h2><i class="fa-solid fa-wand-magic-sparkles" style="color:var(--wrangler)"></i> Wrangler · Transformation Steps <span class="tag">Task 3</span></h2>
+                <div class="wrangler-box" id="wranglerBox">
+                    <div class="w-title">
+                        <span><i class="fa-solid fa-scroll"></i> Recipe</span>
+                        <span>2 directivas</span>
+                    </div>
+                    <div id="wranglerSteps"></div>
+                </div>
+            </div>
+
+            <!-- Tasks 4-6: Pipeline ETL -->
+            <div class="stage-card" id="stagePipeline">
+                <h2><i class="fa-solid fa-diagram-project" style="color:var(--cdf)"></i> Pipeline ETL: CSV → Wrangler → BigQuery <span class="tag">Tasks 4-6</span></h2>
+                <div class="pipeline-visual" id="pipelineVisual">
+                    <div class="pipeline-node source" data-node="gcs">
+                        <i class="fa-solid fa-cloud"></i> GCSFile
+                        <span class="sub">gs://bucket/titanic.csv</span>
+                    </div>
+                    <div class="pipeline-arrow" data-parrow="1"><i class="fa-solid fa-arrow-right"></i></div>
+                    <div class="pipeline-node transform" data-node="wrangler">
+                        <i class="fa-solid fa-wand-magic-sparkles"></i> Wrangler
+                        <span class="sub">recipe: parse + drop</span>
+                    </div>
+                    <div class="pipeline-arrow" data-parrow="2"><i class="fa-solid fa-arrow-right"></i></div>
+                    <div class="pipeline-node sink" data-node="bq">
+                        <i class="fa-solid fa-database"></i> BigQuery
+                        <span class="sub">demo.titanic</span>
+                    </div>
+                </div>
+
+                <!-- Node props -->
+                <div class="node-props" id="nodeProps">
+                    <div class="prop-row"><span class="prop-key">Reference Name</span><span class="prop-val">Titanic_BQ</span></div>
+                    <div class="prop-row"><span class="prop-key">Dataset</span><span class="prop-val">demo</span></div>
+                    <div class="prop-row"><span class="prop-key">Table</span><span class="prop-val">titanic</span></div>
+                    <div class="prop-row"><span class="prop-key">Label</span><span class="prop-val">BigQuery</span></div>
+                </div>
+
+                <!-- Job progress -->
+                <div class="job-progress" id="jobProgress">
+                    <div class="progress-step" data-step="preview"><span class="dot"></span> Preview mode: validando lectura y transformación</div>
+                    <div class="progress-step" data-step="deploy"><span class="dot"></span> Deploying pipeline...</div>
+                    <div class="progress-step" data-step="run"><span class="dot"></span> Running ETL job</div>
+                    <div class="progress-step" data-step="parse"><span class="dot"></span> Parse CSV: 893 → 892 records (header consumido)</div>
+                    <div class="progress-step" data-step="succeeded"><span class="dot"></span> Pipeline status: Succeeded</div>
+                </div>
+
+                <!-- Preview output -->
+                <div class="preview-output" id="previewOutput">
+                    <div class="p-header"><i class="fa-solid fa-eye"></i> Preview · Wrangler output (892 records)</div>
+                    <table class="prev-table" id="prevTable">
+                        <thead>
+                            <tr>
+                                <th>PassengerId</th>
+                                <th>Survived</th>
+                                <th>Pclass</th>
+                                <th>Name</th>
+                                <th>Sex</th>
+                                <th>Age</th>
+                                <th>Fare</th>
+                            </tr>
+                        </thead>
+                        <tbody></tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Task 7: BigQuery result -->
+            <div class="stage-card" id="stageBQ">
+                <h2><i class="fa-solid fa-database" style="color:var(--bq)"></i> Resultados en BigQuery <span class="tag">Task 7</span></h2>
+                <div class="bq-result" id="bqResult">
+                    <div class="r-header">
+                        <span><i class="fa-solid fa-check-circle" style="color:var(--gcp-green);"></i> SELECT * FROM `demo.titanic` LIMIT 10</span>
+                        <span class="count">892 rows in table</span>
+                    </div>
+                    <table class="prev-table" id="bqTable">
+                        <thead>
+                            <tr>
+                                <th>PassengerId</th>
+                                <th>Survived</th>
+                                <th>Pclass</th>
+                                <th>Name</th>
+                                <th>Sex</th>
+                                <th>Age</th>
+                                <th>Fare</th>
+                            </tr>
+                        </thead>
+                        <tbody></tbody>
+                    </table>
+                </div>
+            </div>
+
+        </div>
+
+        <!-- COLUMNA 3: CONSOLA -->
+        <div class="panel" style="padding:0; background:transparent; border:none;">
+            <div class="console" id="console">
+                <div class="log-line info">// Cloud Shell — Cloud Data Fusion ETL</div>
+                <div class="log-line info">// Presiona "Task 1" para comenzar</div>
+            </div>
+        </div>
+
+    </div>
+
+    <div class="score-bar">
+        <div class="score-item"><i class="fa-solid fa-star"></i> Score:</div>
+        <div class="score-item"><span class="score-val" id="scoreVal">0</span> / 100</div>
+        <div class="score-item" style="margin-left:auto; color:var(--muted); font-size:0.75rem;">
+            <i class="fa-solid fa-clock"></i> Lab GSP807 · 1h 30min
+        </div>
+    </div>
+
+    <script>
+        const consoleEl = document.getElementById('console');
+        const wait = (ms) => new Promise(r => setTimeout(r, ms));
+        let score = 0;
+        const projectId = 'qwiklabs-gcp-02-xxxxx';
+
+        function log(text, type = 'info') {
+            const div = document.createElement('div');
+            div.className = `log-line ${type}`;
+            div.innerHTML = text;
+            consoleEl.appendChild(div);
+            consoleEl.scrollTop = consoleEl.scrollHeight;
+        }
+
+        function clearConsole() {
+            consoleEl.innerHTML = '<div class="log-line info">// Consola reiniciada</div>';
+        }
+
+        function addScore(pts) {
+            score += pts;
+            document.getElementById('scoreVal').textContent = score;
+        }
+
+        function markResource(res, detail, status) {
+            const el = document.querySelector(`.resource-item[data-res="${res}"]`);
+            if (!el) return;
+            el.classList.add('used');
+            if (detail) {
+                const detailEl = el.querySelector('.detail');
+                if (detailEl) detailEl.textContent = detail;
+            }
+            if (status) {
+                const statusEl = el.querySelector('.status');
+                if (statusEl) statusEl.textContent = status;
+            }
+        }
+
+        // ==========================================================
+        // TASK 1: LOAD THE DATA
+        // ==========================================================
+        async function runTask1() {
+            document.getElementById('btnTask1').disabled = true;
+            clearConsole();
+            document.getElementById('stageCSV').classList.add('active');
+
+            log('// Task 1: Crear bucket y cargar titanic.csv', 'info');
+            log('$ export BUCKET=$GOOGLE_CLOUD_PROJECT', 'cmd');
+            await wait(400);
+            log('$ gcloud storage buckets create gs://$BUCKET', 'cmd');
+            await wait(1000);
+            log('Creating gs://' + projectId + '/...', 'info');
+            await wait(600);
+            log('Bucket creado correctamente.', 'success');
+            markResource('bucket', 'gs://' + projectId, '✓ creado');
+            await wait(400);
+
+            log('', 'info');
+            log('$ gsutil cp gs://cloud-training/OCBL163/titanic.csv gs://$BUCKET', 'cmd');
+            await wait(1000);
+            log('Copying gs://cloud-training/OCBL163/titanic.csv [Content-Type=text/csv]...', 'info');
+            await wait(700);
+            log('  Completed 1 file(s).', 'success');
+            markResource('csv', 'titanic.csv', '✓ 893 registros');
+            await wait(500);
+
+            // Mostrar CSV preview
+            const csvPreview = document.getElementById('csvPreview');
+            csvPreview.classList.add('show');
+            const header = 'PassengerId,Survived,Pclass,Name,Sex,Age,SibSp,Parch,Ticket,Fare,Cabin,Embarked';
+            const rows = [
+                '1,0,3,"Braund, Mr. Owen Harris",male,22,1,0,A/5 21171,7.25,,S',
+                '2,1,1,"Cumings, Mrs. John Bradley",female,38,1,0,PC 17599,71.2833,C85,C',
+                '3,1,3,"Heikkinen, Miss. Laina",female,26,0,0,STON/O2. 3101282,7.925,,S',
+                '4,1,1,"Futrelle, Mrs. Jacques Heath",female,35,1,0,113803,53.1,C123,S',
+                '5,0,3,"Allen, Mr. William Henry",male,35,0,0,373450,8.05,,S',
+                '6,0,3,"Moran, Mr. James",male,,0,0,330877,8.4583,,Q',
+                '7,0,1,"McCarthy, Mr. Timothy J",male,54,0,0,17463,51.8625,E46,S',
+                '8,0,3,"Palsson, Master. Gosta Leonard",male,2,3,1,349909,21.075,,S',
+                '9,1,3,"Johnson, Mrs. Oscar W",female,27,0,2,347742,11.1333,,S',
+                '10,1,2,"Nasser, Mrs. Nicholas",female,14,1,0,237736,30.0708,,C'
+            ];
+
+            const hDiv = document.createElement('div');
+            hDiv.className = 'csv-row header';
+            hDiv.textContent = header;
+            csvPreview.appendChild(hDiv);
+
+            for (const row of rows) {
+                const div = document.createElement('div');
+                div.className = 'csv-row';
+                div.textContent = row;
+                csvPreview.appendChild(div);
+                await wait(80);
+            }
+
+            addScore(15);
+            document.getElementById('btnTask1').classList.add('done');
+            document.getElementById('btnTask2').disabled = false;
+            document.getElementById('btnTask2').classList.add('active');
+        }
+
+        // ==========================================================
+        // TASK 2: PERMISSIONS
+        // ==========================================================
+        async function runTask2() {
+            document.getElementById('btnTask2').disabled = true;
+
+            log('', 'info');
+            log('// Task 2: Otorgar permisos IAM necesarios', 'info');
+            log('// Data Fusion > Instances — instancia lista', 'info');
+            await wait(700);
+            markResource('cdf', 'ready', '✓ instancia lista');
+
+            log('', 'info');
+            log('// IAM & Admin > IAM > Grant Access', 'info');
+            log('Principal: {project-number}-compute@developer.gserviceaccount.com', 'key');
+            log('Role 1: Cloud Data Fusion API Service Agent', 'key');
+            log('Role 2: Dataproc Administrator', 'key');
+            await wait(1000);
+            log('✓ Roles asignados al compute service account.', 'success');
+            markResource('iam1', 'compute@developer', '✓ API Agent + Dataproc Admin');
+
+            log('', 'info');
+            log('// Service Accounts > compute@developer > Principals with access', 'info');
+            log('Grant Access a: service-{project-number}@gcp-sa-datafusion.iam.gserviceaccount.com', 'key');
+            log('Role: Service Account User', 'key');
+            await wait(1000);
+            log('✓ Service Account User otorgado.', 'success');
+            markResource('iam2', 'gcp-sa-datafusion', '✓ Service Account User');
+
+            await wait(500);
+            addScore(15);
+            document.getElementById('btnTask2').classList.add('done');
+            document.getElementById('btnTask3').disabled = false;
+            document.getElementById('btnTask3').classList.add('active');
+        }
+
+        // ==========================================================
+        // TASK 3: WRANGLER
+        // ==========================================================
+        async function runTask3() {
+            document.getElementById('btnTask3').disabled = true;
+            document.getElementById('stageWrangler').classList.add('active');
+
+            log('', 'info');
+            log('// Task 3: Wrangler — transformaciones interactivas', 'info');
+            log('// Data Fusion UI > Wrangler > GCS > bucket > titanic.csv', 'info');
+            await wait(800);
+            log('Parsing Options: Format = text', 'key');
+            await wait(500);
+
+            const wranglerBox = document.getElementById('wranglerBox');
+            wranglerBox.classList.add('show');
+            const steps = document.getElementById('wranglerSteps');
+
+            // Step 1: Parse CSV
+            const s1 = document.createElement('div');
+            s1.className = 'wrangler-step';
+            s1.innerHTML = '<span class="step-num">1</span> <span>Parse CSV con header:</span> <span class="directive">parse-as-csv :body \',\' true</span>';
+            steps.appendChild(s1);
+            await wait(800);
+            log('parse-as-csv :body \',\' true', 'wrangler');
+
+            // Step 2: Drop body
+            const s2 = document.createElement('div');
+            s2.className = 'wrangler-step';
+            s2.innerHTML = '<span class="step-num">2</span> <span>Drop columna body:</span> <span class="directive">drop :body</span>';
+            steps.appendChild(s2);
+            await wait(800);
+            log('drop :body', 'wrangler');
+
+            await wait(600);
+            log('', 'info');
+            log('// Recipe: 2 directivas. Listo para pipeline.', 'success');
+            log('// Create a Pipeline → Batch pipeline', 'key');
+            await wait(500);
+
+            markResource('wrangler', 'parse + drop', '✓ recipe creada');
+            addScore(15);
+
+            document.getElementById('btnTask3').classList.add('done');
+            document.getElementById('btnTask4').disabled = false;
+            document.getElementById('btnTask4').classList.add('active');
+        }
+
+        // ==========================================================
+        // TASK 4: BIGQUERY SINK
+        // ==========================================================
+        async function runTask4() {
+            document.getElementById('btnTask4').disabled = true;
+            document.getElementById('stagePipeline').classList.add('active');
+
+            log('', 'info');
+            log('// Task 4: Configurar BigQuery sink en Pipeline Studio', 'info');
+            await wait(600);
+
+            // Mostrar nodos GCS y Wrangler
+            document.querySelector('[data-node="gcs"]').classList.add('show');
+            await wait(500);
+            log('  ✓ Nodo Source: GCSFile (E)', 'key');
+            document.querySelector('[data-parrow="1"]').classList.add('show');
+            await wait(400);
+            document.querySelector('[data-node="wrangler"]').classList.add('show');
+            await wait(500);
+            log('  ✓ Nodo Transform: Wrangler (T)', 'key');
+            await wait(600);
+
+            // Añadir BigQuery sink
+            log('', 'info');
+            log('// Sink > BigQuery > colocar en canvas > conectar Wrangler → BigQuery', 'info');
+            document.querySelector('[data-parrow="2"]').classList.add('show');
+            await wait(500);
+            document.querySelector('[data-node="bq"]').classList.add('show');
+            await wait(600);
+            log('  ✓ Nodo Sink: BigQuery (L)', 'success');
+            log('// Pipeline ETL completo: GCSFile → Wrangler → BigQuery', 'success');
+
+            await wait(500);
+            addScore(15);
+            document.getElementById('btnTask4').classList.add('done');
+            document.getElementById('btnTask5').disabled = false;
+            document.getElementById('btnTask5').classList.add('active');
+        }
+
+        // ==========================================================
+        // TASK 5: CONFIGURE PIPELINE
+        // ==========================================================
+        async function runTask5() {
+            document.getElementById('btnTask5').disabled = true;
+
+            log('', 'info');
+            log('// Task 5: Configurar propiedades de los nodos', 'info');
+            await wait(500);
+            log('// GCS node: verificado (source)', 'info');
+            await wait(400);
+            log('// Wrangler node: input schema verificado', 'info');
+            await wait(400);
+            log('// BigQuery node properties:', 'key');
+            await wait(300);
+
+            const nodeProps = document.getElementById('nodeProps');
+            nodeProps.classList.add('show');
+
+            log('  Reference Name: Titanic_BQ', 'key');
+            await wait(300);
+            log('  Dataset: demo', 'key');
+            await wait(300);
+            log('  Table: titanic', 'key');
+            await wait(500);
+            log('✓ Configuración guardada.', 'success');
+
+            markResource('bqtable', 'demo.titanic', '✓ configurada');
+            await wait(400);
+            addScore(10);
+
+            document.getElementById('btnTask5').classList.add('done');
+            document.getElementById('btnTask6').disabled = false;
+            document.getElementById('btnTask6').classList.add('active');
+        }
+
+        // ==========================================================
+        // TASK 6: TEST AND DEPLOY
+        // ==========================================================
+        async function runTask6() {
+            document.getElementById('btnTask6').disabled = true;
+
+            log('', 'info');
+            log('// Task 6: Probar y desplegar pipeline', 'info');
+            log('// Save as: ETL-batch-pipeline', 'key');
+            log('// Description: ETL pipeline to parse CSV, transform and write output to BigQuery', 'key');
+            await wait(800);
+            log('✓ Pipeline guardado.', 'success');
+            await wait(500);
+
+            const jobProgress = document.getElementById('jobProgress');
+            jobProgress.classList.add('show');
+
+            // Preview
+            log('', 'info');
+            log('// Preview mode (toggle)', 'info');
+            document.querySelector('[data-step="preview"]').classList.add('running');
+            await wait(1200);
+            document.querySelector('[data-step="preview"]').classList.remove('running');
+            document.querySelector('[data-step="preview"]').classList.add('ok');
+            log('✓ Preview: lectura y transformación OK', 'success');
+
+            // Preview output
+            const previewOutput = document.getElementById('previewOutput');
+            previewOutput.classList.add('show');
+            const prevBody = document.querySelector('#prevTable tbody');
+            const titanicRows = [
+                { pid: 1, surv: 0, pclass: 3, name: 'Braund, Mr. Owen Harris', sex: 'male', age: 22, fare: 7.25 },
+                { pid: 2, surv: 1, pclass: 1, name: 'Cumings, Mrs. John Bradley', sex: 'female', age: 38, fare: 71.28 },
+                { pid: 3, surv: 1, pclass: 3, name: 'Heikkinen, Miss. Laina', sex: 'female', age: 26, fare: 7.93 },
+                { pid: 4, surv: 1, pclass: 1, name: 'Futrelle, Mrs. Jacques Heath', sex: 'female', age: 35, fare: 53.10 },
+                { pid: 5, surv: 0, pclass: 3, name: 'Allen, Mr. William Henry', sex: 'male', age: 35, fare: 8.05 }
+            ];
+            for (const r of titanicRows) {
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td class="num">${r.pid}</td>
+                    <td class="num">${r.surv}</td>
+                    <td class="num">${r.pclass}</td>
+                    <td>${r.name}</td>
+                    <td>${r.sex}</td>
+                    <td class="num">${r.age}</td>
+                    <td class="num">${r.fare}</td>
+                `;
+                prevBody.appendChild(tr);
+                await wait(80);
+            }
+            await wait(500);
+
+            // Toggle off preview
+            log('// Preview mode OFF', 'info');
+            await wait(400);
+
+            // Deploy
+            log('', 'info');
+            log('// Deploy pipeline', 'info');
+            document.querySelector('[data-step="deploy"]').classList.add('running');
+            await wait(1500);
+            document.querySelector('[data-step="deploy"]').classList.remove('running');
+            document.querySelector('[data-step="deploy"]').classList.add('ok');
+            log('✓ Pipeline desplegado.', 'success');
+
+            // Run
+            log('', 'info');
+            log('// Run ETL job', 'info');
+            document.querySelector('[data-step="run"]').classList.add('running');
+            await wait(1500);
+            document.querySelector('[data-step="run"]').classList.remove('running');
+            document.querySelector('[data-step="run"]').classList.add('ok');
+
+            // Parse
+            document.querySelector('[data-step="parse"]').classList.add('running');
+            log('Parse CSV: 893 → 892 records (primer row consumido como header)', 'cdf');
+            await wait(1500);
+            document.querySelector('[data-step="parse"]').classList.remove('running');
+            document.querySelector('[data-step="parse"]').classList.add('ok');
+
+            // Succeeded
+            document.querySelector('[data-step="succeeded"]').classList.add('running');
+            log('Pipeline status: Succeeded', 'success');
+            await wait(1000);
+            document.querySelector('[data-step="succeeded"]').classList.remove('running');
+            document.querySelector('[data-step="succeeded"]').classList.add('ok');
+
+            log('', 'info');
+            log('// 892 registros escritos en demo.titanic', 'success');
+            markResource('pipeline', 'ETL-batch-pipeline', '✓ Succeeded');
+            markResource('bqtable', 'demo.titanic', '✓ 892 rows');
+
+            await wait(500);
+            addScore(20);
+
+            document.getElementById('btnTask6').classList.add('done');
+            document.getElementById('btnTask7').disabled = false;
+            document.getElementById('btnTask7').classList.add('active');
+        }
+
+        // ==========================================================
+        // TASK 7: VIEW RESULTS
+        // ==========================================================
+        async function runTask7() {
+            document.getElementById('btnTask7').disabled = true;
+            document.getElementById('stageBQ').classList.add('active');
+
+            log('', 'info');
+            log('// Task 7: Verificar resultados en BigQuery', 'info');
+            log('// BigQuery > demo.titanic > SQL query', 'info');
+            log('SELECT * FROM `demo.titanic` LIMIT 10', 'cmd');
+            await wait(1200);
+            log('Query complete.', 'success');
+            await wait(400);
+
+            const bqResult = document.getElementById('bqResult');
+            bqResult.classList.add('show');
+            const bqBody = document.querySelector('#bqTable tbody');
+
+            const titanicResults = [
+                { pid: 1, surv: 0, pclass: 3, name: 'Braund, Mr. Owen Harris', sex: 'male', age: 22, fare: 7.25 },
+                { pid: 2, surv: 1, pclass: 1, name: 'Cumings, Mrs. John Bradley', sex: 'female', age: 38, fare: 71.28 },
+                { pid: 3, surv: 1, pclass: 3, name: 'Heikkinen, Miss. Laina', sex: 'female', age: 26, fare: 7.93 },
+                { pid: 4, surv: 1, pclass: 1, name: 'Futrelle, Mrs. Jacques Heath', sex: 'female', age: 35, fare: 53.10 },
+                { pid: 5, surv: 0, pclass: 3, name: 'Allen, Mr. William Henry', sex: 'male', age: 35, fare: 8.05 },
+                { pid: 6, surv: 0, pclass: 3, name: 'Moran, Mr. James', sex: 'male', age: null, fare: 8.46 },
+                { pid: 7, surv: 0, pclass: 1, name: 'McCarthy, Mr. Timothy J', sex: 'male', age: 54, fare: 51.86 },
+                { pid: 8, surv: 0, pclass: 3, name: 'Palsson, Master. Gosta Leonard', sex: 'male', age: 2, fare: 21.08 },
+                { pid: 9, surv: 1, pclass: 3, name: 'Johnson, Mrs. Oscar W', sex: 'female', age: 27, fare: 11.13 },
+                { pid: 10, surv: 1, pclass: 2, name: 'Nasser, Mrs. Nicholas', sex: 'female', age: 14, fare: 30.07 }
+            ];
+
+            for (const r of titanicResults) {
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td class="num">${r.pid}</td>
+                    <td class="num">${r.surv}</td>
+                    <td class="num">${r.pclass}</td>
+                    <td>${r.name}</td>
+                    <td>${r.sex}</td>
+                    <td class="num">${r.age !== null ? r.age : 'NULL'}</td>
+                    <td class="num">${r.fare}</td>
+                `;
+                bqBody.appendChild(tr);
+                await wait(80);
+            }
+
+            log('', 'info');
+            log('// 892 registros del Titanic cargados en BigQuery.', 'success');
+            log('// El pipeline ETL está completo y validado.', 'info');
+            await wait(500);
+
+            addScore(10);
+
+            log('', 'info');
+            log('=== LAB COMPLETADO ===', 'success');
+            log('Score final: ' + score + ' / 100', 'success');
+            log('Pipeline ETL: CSV → Wrangler → BigQuery', 'info');
+            log('Transformaciones: parse-as-csv + drop :body', 'key');
+
+            document.getElementById('btnTask7').classList.add('done');
+        }
+
+        // ==========================================================
+        // RESET
+        // ==========================================================
+        function resetAll() {
+            score = 0;
+            document.getElementById('scoreVal').textContent = '0';
+
+            document.querySelectorAll('.resource-item').forEach(el => {
+                el.classList.remove('used');
+                const statusEl = el.querySelector('.status');
+                if (statusEl) statusEl.textContent = '';
+            });
+
+            document.querySelector('[data-res="bucket"] .detail').textContent = '$GOOGLE_CLOUD_PROJECT';
+            document.querySelector('[data-res="csv"] .detail').textContent = '893 registros';
+            document.querySelector('[data-res="wrangler"] .detail').textContent = 'parse + drop';
+            document.querySelector('[data-res="pipeline"] .detail').textContent = 'ETL-batch-pipeline';
+            document.querySelector('[data-res="bqtable"] .detail').textContent = 'demo.titanic';
+
+            document.querySelectorAll('.stage-card').forEach(el => el.classList.remove('active'));
+            document.querySelectorAll('.pipeline-node').forEach(el => el.classList.remove('show'));
+            document.querySelectorAll('.pipeline-arrow').forEach(el => el.classList.remove('show'));
+            document.querySelectorAll('.progress-step').forEach(el => el.classList.remove('ok', 'running'));
+
+            document.getElementById('csvPreview').classList.remove('show');
+            document.getElementById('csvPreview').innerHTML = '';
+            document.getElementById('wranglerBox').classList.remove('show');
+            document.getElementById('wranglerSteps').innerHTML = '';
+            document.getElementById('nodeProps').classList.remove('show');
+            document.getElementById('jobProgress').classList.remove('show');
+            document.getElementById('previewOutput').classList.remove('show');
+            document.querySelector('#prevTable tbody').innerHTML = '';
+            document.getElementById('bqResult').classList.remove('show');
+            document.querySelector('#bqTable tbody').innerHTML = '';
+
+            ['btnTask1','btnTask2','btnTask3','btnTask4','btnTask5','btnTask6','btnTask7'].forEach(id => {
+                const btn = document.getElementById(id);
+                btn.disabled = (id !== 'btnTask1');
+                btn.classList.remove('active', 'done');
+            });
+            document.getElementById('btnTask1').disabled = false;
+
+            clearConsole();
+        }
+    </script>
+</body>
+</html>

@@ -1,0 +1,1269 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Lab GSP808: Realtime Pipelines en Cloud Data Fusion</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        :root {
+            --bg: #0b1120;
+            --panel: #1e293b;
+            --panel-2: #334155;
+            --text: #f1f5f9;
+            --muted: #94a3b8;
+            --accent: #4285f4;
+            --gcp-yellow: #fbbc04;
+            --gcp-green: #34a853;
+            --gcp-red: #ea4335;
+            --cdf: #ff6d00;
+            --wrangler: #8b5cf6;
+            --pubsub: #7c3aed;
+            --bq: #4285f4;
+            --dataflow: #ff6d00;
+            --border: #334155;
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+
+        body {
+            font-family: 'Segoe UI', Roboto, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            min-height: 100vh;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        header { text-align: center; margin-bottom: 20px; max-width: 900px; }
+        h1 { font-size: 1.4rem; font-weight: 300; letter-spacing: 1px; margin-bottom: 8px; }
+        h1 i { color: var(--pubsub); }
+        p.subtitle { color: var(--muted); font-size: 0.88rem; }
+        p.subtitle code { color: var(--gcp-yellow); background: var(--panel); padding: 2px 6px; border-radius: 4px; }
+
+        .controls {
+            display: flex;
+            gap: 7px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+
+        .btn {
+            padding: 10px 13px;
+            border: 2px solid var(--border);
+            background: var(--panel);
+            color: var(--text);
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 0.75rem;
+            font-weight: 600;
+            transition: all 0.25s;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .btn:hover:not(:disabled) { transform: translateY(-2px); border-color: var(--pubsub); }
+        .btn:disabled { opacity: 0.35; cursor: not-allowed; }
+        .btn.active { border-color: var(--pubsub); background: rgba(124,58,237,0.15); box-shadow: 0 0 15px rgba(124,58,237,0.2); }
+        .btn.done { border-color: var(--gcp-green); background: rgba(52,168,83,0.12); color: var(--gcp-green); }
+
+        .btn i { font-size: 0.9rem; }
+
+        .workspace {
+            display: grid;
+            grid-template-columns: 290px 1fr 370px;
+            gap: 18px;
+            width: 100%;
+            max-width: 1620px;
+            align-items: start;
+        }
+
+        .panel {
+            background: var(--panel);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 16px;
+        }
+
+        .panel-title {
+            font-size: 0.72rem;
+            text-transform: uppercase;
+            letter-spacing: 1.5px;
+            color: var(--muted);
+            margin-bottom: 14px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .resource-item {
+            background: var(--panel-2);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 9px 11px;
+            font-size: 0.73rem;
+            font-family: 'Courier New', monospace;
+            color: var(--muted);
+            display: flex;
+            flex-direction: column;
+            gap: 3px;
+            margin-bottom: 7px;
+            transition: all 0.4s ease;
+            opacity: 0.45;
+        }
+
+        .resource-item.used {
+            opacity: 1;
+            border-color: var(--pubsub);
+            color: var(--text);
+            background: rgba(124,58,237,0.08);
+        }
+
+        .resource-item .name { display: flex; align-items: center; gap: 6px; }
+        .resource-item .name i { font-size: 0.82rem; }
+        .resource-item .detail { font-size: 0.64rem; color: var(--pubsub); font-weight: bold; word-break: break-all; }
+        .resource-item .status { font-size: 0.62rem; color: var(--gcp-green); }
+
+        .canvas {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+
+        .stage-card {
+            background: var(--panel);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 16px;
+            opacity: 0.3;
+            transform: translateY(8px);
+            transition: all 0.5s ease;
+        }
+
+        .stage-card.active {
+            opacity: 1;
+            transform: translateY(0);
+            border-color: var(--pubsub);
+            box-shadow: 0 0 25px rgba(124,58,237,0.12);
+        }
+
+        .stage-card h2 {
+            font-size: 0.92rem;
+            margin-bottom: 12px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .stage-card h2 .tag {
+            font-size: 0.58rem;
+            padding: 3px 8px;
+            border-radius: 10px;
+            background: var(--panel-2);
+            color: var(--muted);
+            font-family: monospace;
+            margin-left: auto;
+        }
+
+        /* JSON preview */
+        .json-preview {
+            display: none;
+            background: #000;
+            border-radius: 8px;
+            padding: 10px;
+            font-family: 'Courier New', monospace;
+            font-size: 0.62rem;
+            border: 1px solid var(--border);
+            margin-top: 8px;
+            max-height: 200px;
+            overflow: auto;
+        }
+        .json-preview.show { display: block; animation: fadeIn 0.4s ease; }
+        .json-line { white-space: pre; padding: 1px 0; color: var(--muted); line-height: 1.4; }
+        .json-key { color: #93c5fd; }
+        .json-str { color: #86efac; }
+        .json-num { color: #fca5a5; }
+
+        /* Recipe box */
+        .recipe-box {
+            display: none;
+            background: #0d1117;
+            border-radius: 8px;
+            padding: 12px;
+            font-family: 'Courier New', monospace;
+            font-size: 0.63rem;
+            border: 1px solid var(--wrangler);
+            margin-top: 8px;
+            max-height: 320px;
+            overflow-y: auto;
+        }
+        .recipe-box.show { display: block; animation: fadeIn 0.4s ease; }
+        .recipe-box .r-title {
+            color: var(--wrangler);
+            margin-bottom: 8px;
+            font-size: 0.63rem;
+            padding-bottom: 6px;
+            border-bottom: 1px solid rgba(139,92,246,0.3);
+            display: flex;
+            justify-content: space-between;
+        }
+        .recipe-step {
+            display: flex;
+            align-items: flex-start;
+            gap: 7px;
+            padding: 4px 0;
+            color: var(--text);
+            font-size: 0.62rem;
+            opacity: 0;
+            animation: fadeIn 0.3s ease forwards;
+            border-bottom: 1px solid rgba(51,65,85,0.2);
+        }
+        .recipe-step .step-num {
+            width: 17px; height: 17px;
+            border-radius: 50%;
+            background: var(--wrangler);
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.52rem;
+            font-weight: bold;
+            flex-shrink: 0;
+            margin-top: 1px;
+        }
+        .recipe-step .directive {
+            color: var(--gcp-yellow);
+            font-family: monospace;
+            font-weight: bold;
+            word-break: break-all;
+        }
+        .recipe-step .desc {
+            color: var(--muted);
+            font-size: 0.56rem;
+            display: block;
+            margin-top: 2px;
+        }
+
+        /* Pipeline visual */
+        .pipeline-visual {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 5px;
+            padding: 15px 0;
+            flex-wrap: wrap;
+            position: relative;
+        }
+
+        .pipeline-node {
+            flex: 1;
+            min-width: 100px;
+            text-align: center;
+            padding: 12px 8px;
+            border-radius: 10px;
+            font-size: 0.67rem;
+            font-weight: 600;
+            border: 2px solid var(--border);
+            background: var(--panel-2);
+            color: var(--muted);
+            opacity: 0;
+            transform: scale(0.85);
+            transition: all 0.5s ease;
+            position: relative;
+        }
+
+        .pipeline-node.show { opacity: 1; transform: scale(1); }
+        .pipeline-node.source { border-color: var(--pubsub); color: #c4b5fd; background: rgba(124,58,237,0.1); }
+        .pipeline-node.transform { border-color: var(--wrangler); color: #c4b5fd; background: rgba(139,92,246,0.1); }
+        .pipeline-node.sink { border-color: var(--bq); color: #93c5fd; background: rgba(66,133,244,0.1); }
+        .pipeline-node.running { animation: pulseBorder 2s infinite; }
+
+        .pipeline-node .sub { display: block; font-size: 0.55rem; font-weight: normal; color: var(--muted); margin-top: 3px; font-family: monospace; }
+        .pipeline-node .records {
+            display: block;
+            font-size: 0.62rem;
+            color: var(--gcp-green);
+            margin-top: 4px;
+            font-weight: bold;
+            font-family: monospace;
+        }
+
+        .pipeline-arrow {
+            color: var(--border);
+            font-size: 1rem;
+            opacity: 0;
+            transition: opacity 0.4s ease;
+        }
+        .pipeline-arrow.show { opacity: 1; color: var(--pubsub); }
+        .pipeline-arrow.flowing { color: var(--gcp-green); animation: pulse 1s infinite; }
+
+        @keyframes pulseBorder {
+            0%, 100% { box-shadow: 0 0 0 0 rgba(124,58,237,0.4); }
+            50% { box-shadow: 0 0 0 8px rgba(124,58,237,0); }
+        }
+
+        /* Node props */
+        .node-props {
+            display: none;
+            background: #0d1117;
+            border-radius: 8px;
+            padding: 10px;
+            font-family: 'Courier New', monospace;
+            font-size: 0.66rem;
+            border: 1px solid var(--border);
+            margin-top: 8px;
+        }
+        .node-props.show { display: block; animation: fadeIn 0.4s ease; }
+        .node-props .prop-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 3px 0;
+            border-bottom: 1px solid rgba(51,65,85,0.3);
+        }
+        .node-props .prop-row:last-child { border-bottom: none; }
+        .node-props .prop-key { color: var(--muted); }
+        .node-props .prop-val { color: var(--gcp-yellow); font-weight: bold; }
+
+        /* Job progress */
+        .job-progress {
+            display: none;
+            margin-top: 10px;
+            background: var(--panel-2);
+            border-radius: 8px;
+            padding: 12px;
+        }
+        .job-progress.show { display: block; }
+        .progress-step {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-size: 0.68rem;
+            padding: 4px 0;
+            color: var(--muted);
+            font-family: monospace;
+        }
+        .progress-step .dot {
+            width: 9px; height: 9px;
+            border-radius: 50%;
+            background: var(--border);
+            flex-shrink: 0;
+            transition: all 0.3s;
+        }
+        .progress-step.ok .dot { background: var(--gcp-green); box-shadow: 0 0 8px var(--gcp-green); }
+        .progress-step.ok { color: var(--text); }
+        .progress-step.running .dot { background: var(--pubsub); animation: pulse 1s infinite; }
+        .progress-step.running { color: var(--pubsub); }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        /* Dataflow job visual */
+        .df-job {
+            display: none;
+            background: #0d1117;
+            border-radius: 8px;
+            padding: 12px;
+            font-family: 'Courier New', monospace;
+            font-size: 0.66rem;
+            border: 1px solid var(--dataflow);
+            margin-top: 8px;
+        }
+        .df-job.show { display: block; animation: fadeIn 0.4s ease; }
+        .df-job .df-header {
+            color: var(--dataflow);
+            margin-bottom: 8px;
+            font-size: 0.64rem;
+            padding-bottom: 6px;
+            border-bottom: 1px solid rgba(255,109,0,0.3);
+            display: flex;
+            justify-content: space-between;
+        }
+        .df-template {
+            background: rgba(255,109,0,0.08);
+            border-left: 3px solid var(--dataflow);
+            padding: 8px 10px;
+            border-radius: 4px;
+            margin-top: 6px;
+        }
+        .df-template .template-name { color: var(--gcp-yellow); font-weight: bold; }
+        .df-template .param { color: var(--muted); font-size: 0.6rem; padding: 1px 0; }
+        .df-template .param .v { color: #93c5fd; }
+
+        /* Metrics */
+        .metrics-box {
+            display: none;
+            background: #0d1117;
+            border-radius: 8px;
+            padding: 12px;
+            border: 1px solid var(--gcp-green);
+            margin-top: 8px;
+        }
+        .metrics-box.show { display: block; animation: fadeIn 0.4s ease; }
+        .metric-row {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 5px 0;
+            font-family: 'Courier New', monospace;
+            font-size: 0.66rem;
+            border-bottom: 1px solid rgba(51,65,85,0.3);
+        }
+        .metric-row:last-child { border-bottom: none; }
+        .metric-row .label { color: var(--muted); min-width: 100px; }
+        .metric-row .val { color: var(--gcp-green); font-weight: bold; margin-left: auto; font-size: 0.72rem; }
+        .metric-bar {
+            flex: 1;
+            height: 6px;
+            background: var(--panel-2);
+            border-radius: 3px;
+            overflow: hidden;
+        }
+        .metric-bar .fill {
+            height: 100%;
+            background: var(--gcp-green);
+            border-radius: 3px;
+            transition: width 0.6s ease;
+        }
+
+        .console {
+            font-family: 'Courier New', monospace;
+            font-size: 0.69rem;
+            background: #000;
+            border-radius: 8px;
+            padding: 14px;
+            height: 100%;
+            min-height: 500px;
+            max-height: 900px;
+            overflow-y: auto;
+            border: 1px solid var(--border);
+        }
+
+        .log-line { margin-bottom: 5px; line-height: 1.45; animation: fadeIn 0.3s ease; word-wrap: break-word; }
+        .log-line.cmd { color: var(--gcp-green); font-weight: bold; }
+        .log-line.info { color: var(--muted); }
+        .log-line.success { color: var(--gcp-green); }
+        .log-line.warn { color: var(--gcp-yellow); }
+        .log-line.error { color: var(--gcp-red); }
+        .log-line.key { color: #93c5fd; }
+        .log-line.pubsub { color: #c4b5fd; }
+        .log-line.wrangler { color: #c4b5fd; }
+        .log-line.dataflow { color: var(--dataflow); }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateX(-5px); }
+            to { opacity: 1; transform: translateX(0); }
+        }
+
+        @media (max-width: 1250px) {
+            .workspace { grid-template-columns: 1fr; }
+            .pipeline-visual { flex-wrap: wrap; }
+            .pipeline-arrow { display: none; }
+        }
+
+        .score-bar {
+            margin-top: 20px;
+            display: flex;
+            gap: 20px;
+            align-items: center;
+            background: var(--panel);
+            padding: 12px 24px;
+            border-radius: 10px;
+            border: 1px solid var(--border);
+            font-size: 0.85rem;
+        }
+        .score-bar .score-item { display: flex; align-items: center; gap: 8px; }
+        .score-bar .score-item i { color: var(--gcp-yellow); }
+        .score-bar .score-val { color: var(--gcp-green); font-weight: bold; font-family: monospace; }
+    </style>
+</head>
+<body>
+
+    <header>
+        <h1><i class="fa-solid fa-tower-broadcast"></i> Building Realtime Pipelines in Cloud Data Fusion</h1>
+        <p class="subtitle">Lab GSP808 / OCBL164 · Pub/Sub → Wrangler → BigQuery · Spark Streaming · Región: <code>us-central1</code></p>
+    </header>
+
+    <div class="controls">
+        <button class="btn" id="btnTask1" onclick="runTask1()"><i class="fa-solid fa-shield-halved"></i> T1 · Permisos</button>
+        <button class="btn" id="btnTask2" onclick="runTask2()" disabled><i class="fa-solid fa-plug"></i> T2 · API</button>
+        <button class="btn" id="btnTask3" onclick="runTask3()" disabled><i class="fa-solid fa-cloud-arrow-up"></i> T3 · Data</button>
+        <button class="btn" id="btnTask4" onclick="runTask4()" disabled><i class="fa-solid fa-tower-broadcast"></i> T4 · Topic</button>
+        <button class="btn" id="btnTask5" onclick="runTask5()" disabled><i class="fa-solid fa-rss"></i> T5 · Subscription</button>
+        <button class="btn" id="btnTask6" onclick="runTask6()" disabled><i class="fa-solid fa-key"></i> T6 · IAM CDF</button>
+        <button class="btn" id="btnTask7" onclick="runTask7()" disabled><i class="fa-solid fa-compass"></i> T7 · UI</button>
+        <button class="btn" id="btnTask8" onclick="runTask8()" disabled><i class="fa-solid fa-wand-magic-sparkles"></i> T8 · Pipeline</button>
+        <button class="btn" id="btnTask9" onclick="runTask9()" disabled><i class="fa-solid fa-paper-plane"></i> T9 · Pub/Sub msgs</button>
+        <button class="btn" id="btnTask10" onclick="runTask10()" disabled><i class="fa-solid fa-chart-line"></i> T10 · Metrics</button>
+        <button class="btn" id="btnReset" onclick="resetAll()" style="border-color:#ef4444;color:#fca5a5;"><i class="fa-solid fa-rotate-left"></i></button>
+    </div>
+
+    <div class="workspace">
+
+        <!-- COLUMNA 1: RECURSOS -->
+        <div class="panel">
+            <div class="panel-title"><i class="fa-solid fa-cubes"></i> Recursos del Lab</div>
+            <div id="resourceList">
+                <div class="resource-item" data-res="project">
+                    <div class="name"><i class="fa-solid fa-diagram-project" style="color:var(--accent)"></i> Project ID</div>
+                    <div class="detail">qwiklabs-gcp-02-xxxxx</div>
+                </div>
+                <div class="resource-item" data-res="api">
+                    <div class="name"><i class="fa-solid fa-plug" style="color:var(--gcp-green)"></i> Dataflow API</div>
+                    <div class="detail">dataflow.googleapis.com</div>
+                </div>
+                <div class="resource-item" data-res="bucket">
+                    <div class="name"><i class="fa-solid fa-bucket" style="color:var(--gcp-yellow)"></i> GCS Bucket</div>
+                    <div class="detail">$GOOGLE_CLOUD_PROJECT</div>
+                    <div class="status"></div>
+                </div>
+                <div class="resource-item" data-res="tweets">
+                    <div class="name"><i class="fa-solid fa-file-lines" style="color:var(--gcp-yellow)"></i> Tweets File</div>
+                    <div class="detail">pubnub_tweets_2019-06-09</div>
+                    <div class="status"></div>
+                </div>
+                <div class="resource-item" data-res="topic">
+                    <div class="name"><i class="fa-solid fa-tower-broadcast" style="color:var(--pubsub)"></i> Pub/Sub Topic</div>
+                    <div class="detail">cdf_lab_topic</div>
+                    <div class="status"></div>
+                </div>
+                <div class="resource-item" data-res="subscription">
+                    <div class="name"><i class="fa-solid fa-rss" style="color:var(--pubsub)"></i> Subscription</div>
+                    <div class="detail">cdf_lab_subscription</div>
+                    <div class="status"></div>
+                </div>
+                <div class="resource-item" data-res="iam1">
+                    <div class="name"><i class="fa-solid fa-shield" style="color:var(--gcp-green)"></i> IAM: CDF API Agent + Spark Admin</div>
+                    <div class="detail">compute@developer</div>
+                    <div class="status"></div>
+                </div>
+                <div class="resource-item" data-res="iam2">
+                    <div class="name"><i class="fa-solid fa-shield" style="color:var(--gcp-green)"></i> IAM: Service Account User</div>
+                    <div class="detail">gcp-sa-datafusion</div>
+                    <div class="status"></div>
+                </div>
+                <div class="resource-item" data-res="wrangler">
+                    <div class="name"><i class="fa-solid fa-wand-magic-sparkles" style="color:var(--wrangler)"></i> Wrangler Recipe</div>
+                    <div class="detail">0 directivas</div>
+                    <div class="status"></div>
+                </div>
+                <div class="resource-item" data-res="pipeline">
+                    <div class="name"><i class="fa-solid fa-diagram-project" style="color:var(--cdf)"></i> Pipeline</div>
+                    <div class="detail">Realtime_Pipeline</div>
+                    <div class="status"></div>
+                </div>
+                <div class="resource-item" data-res="dataset">
+                    <div class="name"><i class="fa-solid fa-layer-group" style="color:var(--bq)"></i> BQ Dataset</div>
+                    <div class="detail">realtime</div>
+                    <div class="status"></div>
+                </div>
+                <div class="resource-item" data-res="bqtable">
+                    <div class="name"><i class="fa-solid fa-table" style="color:var(--bq)"></i> BQ Table</div>
+                    <div class="detail">realtime.tweets</div>
+                    <div class="status"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- COLUMNA 2: CANVAS -->
+        <div class="canvas">
+
+            <!-- Task 3: JSON preview -->
+            <div class="stage-card" id="stageJSON">
+                <h2><i class="fa-solid fa-file-lines" style="color:var(--gcp-yellow)"></i> Sample tweets (JSON) <span class="tag">Task 3</span></h2>
+                <div class="json-preview" id="jsonPreview"></div>
+            </div>
+
+            <!-- Task 8: Wrangler Recipe -->
+            <div class="stage-card" id="stageRecipe">
+                <h2><i class="fa-solid fa-wand-magic-sparkles" style="color:var(--wrangler)"></i> Wrangler · Transformation Steps <span class="tag">Task 8</span></h2>
+                <div class="recipe-box" id="recipeBox">
+                    <div class="r-title">
+                        <span><i class="fa-solid fa-scroll"></i> Recipe (directivas)</span>
+                        <span id="recipeCount">0 directivas</span>
+                    </div>
+                    <div id="recipeSteps"></div>
+                </div>
+            </div>
+
+            <!-- Task 8: Pipeline visual -->
+            <div class="stage-card" id="stagePipeline">
+                <h2><i class="fa-solid fa-diagram-project" style="color:var(--cdf)"></i> Realtime Pipeline <span class="tag">Task 8</span></h2>
+                <div class="pipeline-visual" id="pipelineVisual">
+                    <div class="pipeline-node source" data-pnode="pubsub">
+                        <i class="fa-solid fa-tower-broadcast"></i> PubSub
+                        <span class="sub">cdf_lab_subscription</span>
+                        <span class="records" data-rec="pubsub"></span>
+                    </div>
+                    <div class="pipeline-arrow" data-parrow="1"><i class="fa-solid fa-arrow-right"></i></div>
+                    <div class="pipeline-node transform" data-pnode="wrangler">
+                        <i class="fa-solid fa-wand-magic-sparkles"></i> Wrangler
+                        <span class="sub">recipe aplicada</span>
+                        <span class="records" data-rec="wrangler"></span>
+                    </div>
+                    <div class="pipeline-arrow" data-parrow="2"><i class="fa-solid fa-arrow-right"></i></div>
+                    <div class="pipeline-node sink" data-pnode="bq">
+                        <i class="fa-solid fa-database"></i> BigQuery
+                        <span class="sub">realtime.tweets</span>
+                        <span class="records" data-rec="bq"></span>
+                    </div>
+                </div>
+
+                <!-- Node props -->
+                <div class="node-props" id="nodeProps">
+                    <div class="prop-row"><span class="prop-key">Reference Name</span><span class="prop-val">realtime_pipeline</span></div>
+                    <div class="prop-row"><span class="prop-key">Dataset</span><span class="prop-val">realtime</span></div>
+                    <div class="prop-row"><span class="prop-key">Table</span><span class="prop-val">tweets</span></div>
+                    <div class="prop-row"><span class="prop-key">Validate</span><span class="prop-val">✓ No errors</span></div>
+                </div>
+
+                <!-- Job progress -->
+                <div class="job-progress" id="jobProgress">
+                    <div class="progress-step" data-step="save"><span class="dot"></span> Pipeline saved: Realtime_Pipeline</div>
+                    <div class="progress-step" data-step="deploy"><span class="dot"></span> Pipeline deployed</div>
+                    <div class="progress-step" data-step="run"><span class="dot"></span> Running (Spark Streaming cluster)</div>
+                    <div class="progress-step" data-step="succeeded"><span class="dot"></span> Status: Running</div>
+                </div>
+            </div>
+
+            <!-- Task 9: Dataflow job -->
+            <div class="stage-card" id="stageDataflow">
+                <h2><i class="fa-solid fa-diagram-project" style="color:var(--dataflow)"></i> Dataflow Job · Text Files → Pub/Sub <span class="tag">Task 9</span></h2>
+                <div class="df-job" id="dfJob">
+                    <div class="df-header">
+                        <span><i class="fa-solid fa-play"></i> streaming-pipeline</span>
+                        <span style="color:var(--gcp-green);">Running</span>
+                    </div>
+                    <div class="df-template">
+                        <div class="template-name">Text Files on Cloud Storage to Pub/Sub</div>
+                        <div class="param">Input: <span class="v" id="dfInput">gs://bucket/pubnub_tweets...</span></div>
+                        <div class="param">Output topic: <span class="v" id="dfOutput">projects/PROJECT/topics/cdf_lab_topic</span></div>
+                        <div class="param">Temp: <span class="v" id="dfTemp">gs://bucket/tmp/</span></div>
+                        <div class="param">Machine: <span class="v">e2-standard-2</span></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Task 10: Metrics -->
+            <div class="stage-card" id="stageMetrics">
+                <h2><i class="fa-solid fa-chart-line" style="color:var(--gcp-green)"></i> Pipeline Metrics <span class="tag">Task 10</span></h2>
+                <div class="metrics-box" id="metricsBox">
+                    <div class="metric-row">
+                        <span class="label">PubSub → Wrangler</span>
+                        <div class="metric-bar"><div class="fill" id="bar1" style="width:0%"></div></div>
+                        <span class="val" id="val1">0</span>
+                    </div>
+                    <div class="metric-row">
+                        <span class="label">Wrangler → BQ</span>
+                        <div class="metric-bar"><div class="fill" id="bar2" style="width:0%"></div></div>
+                        <span class="val" id="val2">0</span>
+                    </div>
+                    <div class="metric-row">
+                        <span class="label">Errors</span>
+                        <div class="metric-bar"><div class="fill" id="bar3" style="width:0%; background:var(--gcp-red)"></div></div>
+                        <span class="val" id="val3" style="color:var(--gcp-red)">0</span>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+
+        <!-- COLUMNA 3: CONSOLA -->
+        <div class="panel" style="padding:0; background:transparent; border:none;">
+            <div class="console" id="console">
+                <div class="log-line info">// Cloud Shell — Realtime Pipelines CDF</div>
+                <div class="log-line info">// Presiona "T1 · Permisos" para comenzar</div>
+            </div>
+        </div>
+
+    </div>
+
+    <div class="score-bar">
+        <div class="score-item"><i class="fa-solid fa-star"></i> Score:</div>
+        <div class="score-item"><span class="score-val" id="scoreVal">0</span> / 100</div>
+        <div class="score-item" style="margin-left:auto; color:var(--muted); font-size:0.75rem;">
+            <i class="fa-solid fa-clock"></i> Lab GSP808 · 1h 30min
+        </div>
+    </div>
+
+    <script>
+        const consoleEl = document.getElementById('console');
+        const wait = (ms) => new Promise(r => setTimeout(r, ms));
+        let score = 0;
+        let recipeCount = 0;
+        const projectId = 'qwiklabs-gcp-02-xxxxx';
+        const bucketName = projectId;
+
+        function log(text, type = 'info') {
+            const div = document.createElement('div');
+            div.className = `log-line ${type}`;
+            div.innerHTML = text;
+            consoleEl.appendChild(div);
+            consoleEl.scrollTop = consoleEl.scrollHeight;
+        }
+
+        function clearConsole() {
+            consoleEl.innerHTML = '<div class="log-line info">// Consola reiniciada</div>';
+        }
+
+        function addScore(pts) {
+            score += pts;
+            document.getElementById('scoreVal').textContent = score;
+        }
+
+        function markResource(res, detail, status) {
+            const el = document.querySelector(`.resource-item[data-res="${res}"]`);
+            if (!el) return;
+            el.classList.add('used');
+            if (detail) {
+                const d = el.querySelector('.detail');
+                if (d) d.textContent = detail;
+            }
+            if (status) {
+                const s = el.querySelector('.status');
+                if (s) s.textContent = status;
+            }
+        }
+
+        async function addDirective(directive, desc) {
+            recipeCount++;
+            const steps = document.getElementById('recipeSteps');
+            const div = document.createElement('div');
+            div.className = 'recipe-step';
+            div.innerHTML = `<span class="step-num">${recipeCount}</span><div><span class="directive">${directive}</span><span class="desc">${desc}</span></div>`;
+            steps.appendChild(div);
+            document.getElementById('recipeCount').textContent = recipeCount + ' directiva(s)';
+            log(directive, 'wrangler');
+            await wait(100);
+        }
+
+        // ==========================================================
+        // TASK 1: PROJECT PERMISSIONS
+        // ==========================================================
+        async function runTask1() {
+            document.getElementById('btnTask1').disabled = true;
+            clearConsole();
+
+            log('// Task 1: Verificar permisos del proyecto', 'info');
+            log('// IAM & Admin > IAM', 'info');
+            await wait(600);
+            log('Default compute SA: {project-number}-compute@developer.gserviceaccount.com', 'key');
+            log('Role: Editor ✓', 'success');
+            await wait(500);
+            log('✓ Permisos verificados.', 'success');
+            await wait(400);
+
+            addScore(8);
+            document.getElementById('btnTask1').classList.add('done');
+            document.getElementById('btnTask2').disabled = false;
+            document.getElementById('btnTask2').classList.add('active');
+        }
+
+        // ==========================================================
+        // TASK 2: ENABLE DATAFLOW API
+        // ==========================================================
+        async function runTask2() {
+            document.getElementById('btnTask2').disabled = true;
+
+            log('', 'info');
+            log('// Task 2: Re-habilitar Dataflow API', 'info');
+            log('// Search "Dataflow API" → Manage → Disable API → Confirm', 'info');
+            await wait(800);
+            log('API deshabilitada.', 'info');
+            await wait(400);
+            log('// Click Enable', 'cmd');
+            await wait(1200);
+            log('✓ Dataflow API habilitada.', 'success');
+            markResource('api', 'dataflow.googleapis.com', '✓ habilitada');
+            await wait(400);
+
+            addScore(8);
+            document.getElementById('btnTask2').classList.add('done');
+            document.getElementById('btnTask3').disabled = false;
+            document.getElementById('btnTask3').classList.add('active');
+        }
+
+        // ==========================================================
+        // TASK 3: LOAD DATA
+        // ==========================================================
+        async function runTask3() {
+            document.getElementById('btnTask3').disabled = true;
+            document.getElementById('stageJSON').classList.add('active');
+
+            log('', 'info');
+            log('// Task 3: Crear bucket y cargar tweets', 'info');
+            log('$ export BUCKET=$GOOGLE_CLOUD_PROJECT', 'cmd');
+            await wait(400);
+            log('$ gsutil mb gs://$BUCKET', 'cmd');
+            await wait(900);
+            log('Creating gs://' + bucketName + '/...', 'info');
+            await wait(500);
+            log('Bucket creado.', 'success');
+            markResource('bucket', 'gs://' + bucketName, '✓ creado');
+
+            log('', 'info');
+            log('$ gsutil cp gs://cloud-training/OCBL164/pubnub_tweets_2019-06-09-05-50_part-r-00000 gs://$BUCKET', 'cmd');
+            await wait(1000);
+            log('Copying file...', 'info');
+            await wait(600);
+            log('  Completed 1 file(s).', 'success');
+            markResource('tweets', 'pubnub_tweets_2019-06-09', '✓ subido al bucket');
+            await wait(400);
+
+            // Mostrar JSON preview
+            const jsonPreview = document.getElementById('jsonPreview');
+            jsonPreview.classList.add('show');
+            const jsonLines = [
+                '{',
+                '  <span class="json-key">"created_at"</span>: <span class="json-str">"Sun Jun 09 05:50:01 +0000 2019"</span>,',
+                '  <span class="json-key">"id_str"</span>: <span class="json-str">"1137626146326409217"</span>,',
+                '  <span class="json-key">"text"</span>: <span class="json-str">"RT @user: Just amazing! #AI #DataFusion"</span>,',
+                '  <span class="json-key">"user"</span>: {',
+                '    <span class="json-key">"name"</span>: <span class="json-str">"John Doe"</span>,',
+                '    <span class="json-key">"screen_name"</span>: <span class="json-str">"johndoe"</span>,',
+                '    <span class="json-key">"followers_count"</span>: <span class="json-num">1234</span>',
+                '  },',
+                '  <span class="json-key">"favorite_count"</span>: <span class="json-num">15</span>,',
+                '  <span class="json-key">"retweet_count"</span>: <span class="json-num">5</span>',
+                '}'
+            ];
+            for (const line of jsonLines) {
+                const div = document.createElement('div');
+                div.className = 'json-line';
+                div.innerHTML = line;
+                jsonPreview.appendChild(div);
+                await wait(60);
+            }
+
+            addScore(8);
+            document.getElementById('btnTask3').classList.add('done');
+            document.getElementById('btnTask4').disabled = false;
+            document.getElementById('btnTask4').classList.add('active');
+        }
+
+        // ==========================================================
+        // TASK 4: SETUP PUB/SUB TOPIC
+        // ==========================================================
+        async function runTask4() {
+            document.getElementById('btnTask4').disabled = true;
+
+            log('', 'info');
+            log('// Task 4: Crear Pub/Sub topic', 'info');
+            log('// Pub/Sub > Topics > Create topic', 'info');
+            await wait(600);
+            log('Topic ID: cdf_lab_topic', 'key');
+            await wait(800);
+            log('✓ Topic cdf_lab_topic creado.', 'success');
+            markResource('topic', 'cdf_lab_topic', '✓ creado');
+            await wait(400);
+
+            addScore(8);
+            document.getElementById('btnTask4').classList.add('done');
+            document.getElementById('btnTask5').disabled = false;
+            document.getElementById('btnTask5').classList.add('active');
+        }
+
+        // ==========================================================
+        // TASK 5: ADD SUBSCRIPTION
+        // ==========================================================
+        async function runTask5() {
+            document.getElementById('btnTask5').disabled = true;
+
+            log('', 'info');
+            log('// Task 5: Crear subscription', 'info');
+            log('// Topic page > Create subscription', 'info');
+            await wait(600);
+            log('Subscription ID: cdf_lab_subscription', 'key');
+            log('Delivery type: Pull', 'key');
+            await wait(900);
+            log('✓ Subscription cdf_lab_subscription creada.', 'success');
+            markResource('subscription', 'cdf_lab_subscription', '✓ creada');
+            await wait(400);
+
+            addScore(8);
+            document.getElementById('btnTask5').classList.add('done');
+            document.getElementById('btnTask6').disabled = false;
+            document.getElementById('btnTask6').classList.add('active');
+        }
+
+        // ==========================================================
+        // TASK 6: IAM PERMISSIONS FOR CDF
+        // ==========================================================
+        async function runTask6() {
+            document.getElementById('btnTask6').disabled = true;
+
+            log('', 'info');
+            log('// Task 6: IAM permisos para Cloud Data Fusion', 'info');
+            log('// IAM > +Grant Access', 'info');
+            log('Principal: {project-number}-compute@developer.gserviceaccount.com', 'key');
+            log('Role 1: Cloud Data Fusion API Service Agent', 'key');
+            log('Role 2: Managed Service for Spark Administrator', 'key');
+            await wait(1000);
+            log('✓ Roles asignados.', 'success');
+            markResource('iam1', 'compute@developer', '✓ API Agent + Spark Admin');
+
+            log('', 'info');
+            log('// Service Accounts > compute@developer > Principals with access', 'info');
+            log('Grant Access a: service-{project-number}@gcp-sa-datafusion.iam.gserviceaccount.com', 'key');
+            log('Role: Service Account User', 'key');
+            await wait(1000);
+            log('✓ Service Account User otorgado.', 'success');
+            markResource('iam2', 'gcp-sa-datafusion', '✓ Service Account User');
+            await wait(400);
+
+            addScore(8);
+            document.getElementById('btnTask6').classList.add('done');
+            document.getElementById('btnTask7').disabled = false;
+            document.getElementById('btnTask7').classList.add('active');
+        }
+
+        // ==========================================================
+        // TASK 7: NAVIGATE CDF UI
+        // ==========================================================
+        async function runTask7() {
+            document.getElementById('btnTask7').disabled = true;
+
+            log('', 'info');
+            log('// Task 7: Navegar CDF UI', 'info');
+            log('// Data Fusion > View Instance', 'info');
+            await wait(700);
+            log('Autenticando con credenciales del lab...', 'info');
+            await wait(600);
+            log('✓ UI cargada.', 'success');
+            log('// Navigation menu > Pipeline > Studio', 'key');
+            await wait(500);
+            log('// Dropdown: Data Pipeline - Realtime', 'key');
+            await wait(500);
+
+            addScore(8);
+            document.getElementById('btnTask7').classList.add('done');
+            document.getElementById('btnTask8').disabled = false;
+            document.getElementById('btnTask8').classList.add('active');
+        }
+
+        // ==========================================================
+        // TASK 8: BUILD REALTIME PIPELINE
+        // ==========================================================
+        async function runTask8() {
+            document.getElementById('btnTask8').disabled = true;
+            document.getElementById('stageRecipe').classList.add('active');
+            document.getElementById('recipeBox').classList.add('show');
+            document.getElementById('stagePipeline').classList.add('active');
+
+            log('', 'info');
+            log('// Task 8: Construir realtime pipeline', 'info');
+            log('// Transform > Wrangler → colocar en canvas', 'info');
+            await wait(600);
+            log('// Wrangle button → Upload sample tweets', 'info');
+            await wait(700);
+            log('// Parse JSON depth=1 (x2)', 'info');
+            await wait(500);
+
+            // Directivas Wrangler
+            const directives = [
+                { d: 'columns-replace s/^body_payload_//g', desc: 'Strip prefix de columnas parseadas' },
+                { d: 'drop id_str', desc: 'Elimina id_str' },
+                { d: 'parse-as-simple-date :created_at EEE MMM dd HH:mm:ss Z yyyy', desc: 'Parse fecha Twitter' },
+                { d: 'drop display_text_range', desc: 'Elimina columna' },
+                { d: 'drop truncated', desc: 'Elimina columna' },
+                { d: 'drop in_reply_to_status_id_str', desc: 'Elimina columna' },
+                { d: 'drop in_reply_to_user_id_str', desc: 'Elimina columna' },
+                { d: 'parse-as-json :user 1', desc: 'Parsea user object' },
+                { d: 'drop coordinates', desc: 'Elimina columna' },
+                { d: "set-type :place string", desc: 'Castea place a string' },
+                { d: 'drop geo,place,contributors,is_quote_status,favorited,...', desc: 'Limpieza masiva de columnas irrelevantes' },
+                { d: 'drop user_following,user_default_profile_image,...', desc: 'Drop user flags irrelevantes' },
+                { d: 'fill-null-or-empty :possibly_sensitive \'false\'', desc: 'Default possibly_sensitive' },
+                { d: 'set-type :possibly_sensitive boolean', desc: 'Castea a boolean' },
+                { d: 'drop :entities', desc: 'Elimina entities object' },
+                { d: 'drop :user_location', desc: 'Elimina user_location' }
+            ];
+            for (const item of directives) {
+                await addDirective(item.d, item.desc);
+                await wait(40);
+            }
+
+            log('', 'info');
+            log('// Apply directivas al Wrangler node', 'key');
+            await wait(500);
+
+            // Mostrar nodos pipeline
+            document.querySelector('[data-pnode="wrangler"]').classList.add('show');
+            await wait(500);
+
+            log('', 'info');
+            log('// Source > PubSub → colocar en canvas', 'info');
+            document.querySelector('[data-parrow="1"]').classList.add('show');
+            document.querySelector('[data-pnode="pubsub"]').classList.add('show');
+            await wait(500);
+            log('  Reference Name: Twitter_Input_Stream', 'key');
+            log('  Subscription: cdf_lab_subscription', 'key');
+            log('  Validate ✓ No errors', 'success');
+            await wait(500);
+
+            log('', 'info');
+            log('// Fix discrepancy: PubSub envía en :message, Wrangler espera :body', 'info');
+            log('// Wrangler node → agregar directivas al top:', 'key');
+            await wait(500);
+            const topDirs = [
+                { d: 'keep :message', desc: 'Mantiene solo :message' },
+                { d: "set-charset :message 'utf-8'", desc: 'Charset utf-8' },
+                { d: 'rename :message :body', desc: 'Renombra message → body (compatibilidad)' }
+            ];
+            for (const item of topDirs) {
+                await addDirective(item.d, item.desc);
+                await wait(100);
+            }
+
+            log('', 'info');
+            log('// Sink > BigQuery → colocar y conectar', 'info');
+            document.querySelector('[data-parrow="2"]').classList.add('show');
+            document.querySelector('[data-pnode="bq"]').classList.add('show');
+            await wait(600);
+
+            // Node props
+            const nodeProps = document.getElementById('nodeProps');
+            nodeProps.classList.add('show');
+            log('  Reference Name: realtime_pipeline', 'key');
+            log('  Dataset: realtime', 'key');
+            log('  Table: tweets', 'key');
+            log('  Validate ✓ No errors', 'success');
+            await wait(600);
+
+            log('', 'info');
+            log('// Save: Realtime_Pipeline → Deploy → Run', 'cmd');
+            await wait(500);
+
+            // Job progress
+            const jp = document.getElementById('jobProgress');
+            jp.classList.add('show');
+
+            document.querySelector('[data-step="save"]').classList.add('running');
+            await wait(800);
+            document.querySelector('[data-step="save"]').classList.remove('running');
+            document.querySelector('[data-step="save"]').classList.add('ok');
+
+            document.querySelector('[data-step="deploy"]').classList.add('running');
+            await wait(1000);
+            document.querySelector('[data-step="deploy"]').classList.remove('running');
+            document.querySelector('[data-step="deploy"]').classList.add('ok');
+
+            document.querySelector('[data-step="run"]').classList.add('running');
+            log('Pipeline running on Spark Streaming cluster...', 'cdf');
+            await wait(1500);
+            document.querySelector('[data-step="run"]').classList.remove('running');
+            document.querySelector('[data-step="run"]').classList.add('ok');
+
+            document.querySelector('[data-step="succeeded"]').classList.add('running');
+            log('Pipeline status: Running', 'success');
+            await wait(600);
+            document.querySelector('[data-step="succeeded"]').classList.remove('running');
+            document.querySelector('[data-step="succeeded"]').classList.add('ok');
+
+            // Nodos en estado running
+            document.querySelector('[data-pnode="pubsub"]').classList.add('running');
+            document.querySelector('[data-pnode="wrangler"]').classList.add('running');
+            document.querySelector('[data-pnode="bq"]').classList.add('running');
+
+            markResource('wrangler', recipeCount + ' directivas', '✓ ' + recipeCount + ' steps');
+            markResource('pipeline', 'Realtime_Pipeline', '✓ Running');
+            markResource('dataset', 'realtime', '✓ configurado');
+            markResource('bqtable', 'realtime.tweets', '✓ configurada');
+
+            await wait(500);
+            addScore(20);
+            document.getElementById('btnTask8').classList.add('done');
+            document.getElementById('btnTask9').disabled = false;
+            document.getElementById('btnTask9').classList.add('active');
+        }
+
+        // ==========================================================
+        // TASK 9: SEND MESSAGES INTO PUB/SUB (via Dataflow template)
+        // ==========================================================
+        async function runTask9() {
+            document.getElementById('btnTask9').disabled = true;
+            document.getElementById('stageDataflow').classList.add('active');
+
+            log('', 'info');
+            log('// Task 9: Enviar mensajes a Pub/Sub via Dataflow template', 'info');
+            log('// Dataflow > CREATE JOB FROM TEMPLATE', 'info');
+            await wait(600);
+            log('Job name: streaming-pipeline', 'key');
+            log('Template: Text Files on Cloud Storage to Pub/Sub', 'key');
+            await wait(500);
+
+            const dfJob = document.getElementById('dfJob');
+            dfJob.classList.add('show');
+            document.getElementById('dfInput').textContent = 'gs://' + bucketName + '/pubnub_tweets_2019-06-09-05-50_part-r-00000';
+            document.getElementById('dfOutput').textContent = 'projects/' + projectId + '/topics/cdf_lab_topic';
+            document.getElementById('dfTemp').textContent = 'gs://' + bucketName + '/tmp/';
+
+            log('  Input: gs://' + bucketName + '/pubnub_tweets_2019-06-09-05-50_part-r-00000', 'key');
+            log('  Output topic: projects/' + projectId + '/topics/cdf_lab_topic', 'key');
+            log('  Temporary: gs://' + bucketName + '/tmp/', 'key');
+            log('  Machine: e2-standard-2', 'key');
+            await wait(800);
+
+            log('', 'info');
+            log('// Run job', 'cmd');
+            await wait(500);
+            log('JOB_MESSAGE_DETAILED: Job submitted to Dataflow', 'dataflow');
+            await wait(800);
+            log('JOB_MESSAGE_DETAILED: Workers started successfully', 'dataflow');
+            await wait(800);
+            log('JOB_MESSAGE_DETAILED: Publishing messages to cdf_lab_topic...', 'dataflow');
+            await wait(1200);
+            log('✓ Mensajes publicados en Pub/Sub.', 'success');
+
+            await wait(500);
+            addScore(10);
+            document.getElementById('btnTask9').classList.add('done');
+            document.getElementById('btnTask10').disabled = false;
+            document.getElementById('btnTask10').classList.add('active');
+        }
+
+        // ==========================================================
+        // TASK 10: VIEW PIPELINE METRICS
+        // ==========================================================
+        async function runTask10() {
+            document.getElementById('btnTask10').disabled = true;
+            document.getElementById('stageMetrics').classList.add('active');
+
+            log('', 'info');
+            log('// Task 10: Ver métricas del pipeline realtime', 'info');
+            await wait(500);
+
+            const metricsBox = document.getElementById('metricsBox');
+            metricsBox.classList.add('show');
+
+            // Simular consumo de mensajes
+            const bar1 = document.getElementById('bar1');
+            const bar2 = document.getElementById('bar2');
+            const bar3 = document.getElementById('bar3');
+            const val1 = document.getElementById('val1');
+            const val2 = document.getElementById('val2');
+            const val3 = document.getElementById('val3');
+
+            let pubsubRecs = 0;
+            let bqRecs = 0;
+            const total = 500;
+
+            // Animar progresivamente
+            for (let i = 0; i < 20; i++) {
+                pubsubRecs = Math.min(total, pubsubRecs + 25 + Math.floor(Math.random() * 10));
+                bqRecs = Math.min(total, pubsubRecs - 2);
+                const errs = Math.random() < 0.1 ? 1 : 0;
+
+                val1.textContent = pubsubRecs;
+                val2.textContent = bqRecs;
+                val3.textContent = errs;
+                bar1.style.width = (pubsubRecs / total * 100) + '%';
+                bar2.style.width = (bqRecs / total * 100) + '%';
+                bar3.style.width = (errs * 10) + '%';
+
+                // Actualizar records en nodos
+                const recPubsub = document.querySelector('[data-rec="pubsub"]');
+                const recWrangler = document.querySelector('[data-rec="wrangler"]');
+                const recBq = document.querySelector('[data-rec="bq"]');
+                if (recPubsub) recPubsub.textContent = pubsubRecs + ' events';
+                if (recWrangler) recWrangler.textContent = pubsubRecs + ' events';
+                if (recBq) recBq.textContent = bqRecs + ' events';
+
+                await wait(120);
+            }
+
+            // Flechas en flow
+            document.querySelector('[data-parrow="1"]').classList.add('flowing');
+            document.querySelector('[data-parrow="2"]').classList.add('flowing');
+
+            log('PubSub → Wrangler: ' + pubsubRecs + ' events', 'success');
+            log('Wrangler → BigQuery: ' + bqRecs + ' events', 'success');
+            log('Errores: 0', 'success');
+            await wait(500);
+
+            log('', 'info');
+            log('✓ Pipeline procesando eventos en tiempo real.', 'success');
+            log('// Nuevos mensajes aparecen continuamente en realtime.tweets.', 'info');
+
+            markResource('bqtable', 'realtime.tweets', '✓ ' + bqRecs + ' rows');
+
+            await wait(500);
+            addScore(14);
+
+            log('', 'info');
+            log('=== LAB COMPLETADO ===', 'success');
+            log('Score final: ' + score + ' / 100', 'success');
+            log('Realtime Pipeline: Pub/Sub → Wrangler → BigQuery', 'info');
+            log('Spark Streaming · ' + recipeCount + ' directivas Wrangler aplicadas', 'key');
+            log('Eventos procesados en tiempo real', 'key');
+
+            document.getElementById('btnTask10').classList.add('done');
+        }
+
+        // ==========================================================
+        // RESET
+        // ==========================================================
+        function resetAll() {
+            score = 0;
+            recipeCount = 0;
+            document.getElementById('scoreVal').textContent = '0';
+
+            document.querySelectorAll('.resource-item').forEach(el => {
+                el.classList.remove('used');
+                const s = el.querySelector('.status');
+                if (s) s.textContent = '';
+            });
+
+            document.querySelector('[data-res="bucket"] .detail').textContent = '$GOOGLE_CLOUD_PROJECT';
+            document.querySelector('[data-res="tweets"] .detail').textContent = 'pubnub_tweets_2019-06-09';
+            document.querySelector('[data-res="topic"] .detail').textContent = 'cdf_lab_topic';
+            document.querySelector('[data-res="subscription"] .detail').textContent = 'cdf_lab_subscription';
+            document.querySelector('[data-res="iam1"] .detail').textContent = 'compute@developer';
+            document.querySelector('[data-res="iam2"] .detail').textContent = 'gcp-sa-datafusion';
+            document.querySelector('[data-res="wrangler"] .detail').textContent = '0 directivas';
+            document.querySelector('[data-res="pipeline"] .detail').textContent = 'Realtime_Pipeline';
+            document.querySelector('[data-res="dataset"] .detail').textContent = 'realtime';
+            document.querySelector('[data-res="bqtable"] .detail').textContent = 'realtime.tweets';
+
+            document.querySelectorAll('.stage-card').forEach(el => el.classList.remove('active'));
+            document.querySelectorAll('.pipeline-node').forEach(el => el.classList.remove('show', 'running'));
+            document.querySelectorAll('.pipeline-arrow').forEach(el => el.classList.remove('show', 'flowing'));
+            document.querySelectorAll('.progress-step').forEach(el => el.classList.remove('ok', 'running'));
+            document.querySelectorAll('.records').forEach(el => el.textContent = '');
+
+            document.getElementById('jsonPreview').classList.remove('show');
+            document.getElementById('jsonPreview').innerHTML = '';
+            document.getElementById('recipeBox').classList.remove('show');
+            document.getElementById('recipeSteps').innerHTML = '';
+            document.getElementById('recipeCount').textContent = '0 directivas';
+            document.getElementById('nodeProps').classList.remove('show');
+            document.getElementById('jobProgress').classList.remove('show');
+            document.getElementById('dfJob').classList.remove('show');
+            document.getElementById('metricsBox').classList.remove('show');
+
+            document.getElementById('bar1').style.width = '0%';
+            document.getElementById('bar2').style.width = '0%';
+            document.getElementById('bar3').style.width = '0%';
+            document.getElementById('val1').textContent = '0';
+            document.getElementById('val2').textContent = '0';
+            document.getElementById('val3').textContent = '0';
+
+            ['btnTask1','btnTask2','btnTask3','btnTask4','btnTask5','btnTask6','btnTask7','btnTask8','btnTask9','btnTask10'].forEach(id => {
+                const btn = document.getElementById(id);
+                btn.disabled = (id !== 'btnTask1');
+                btn.classList.remove('active', 'done');
+            });
+            document.getElementById('btnTask1').disabled = false;
+
+            clearConsole();
+        }
+    </script>
+</body>
+</html>

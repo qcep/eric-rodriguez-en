@@ -1,0 +1,844 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SmartPark Vision · Proyecto CV end-to-end</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<style>
+:root{
+  --bg:#070b14; --panel:#111827; --panel2:#1f2937; --text:#f1f5f9; --muted:#94a3b8;
+  --cv:#22d3ee; --cv2:#06b6d4; --vehicle:#f59e0b; --plate:#a855f7;
+  --ok:#22c55e; --err:#ef4444; --border:#1f2937; --biz:#4285f4;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Segoe UI',Roboto,sans-serif;background:
+  radial-gradient(circle at 20% 0%,rgba(34,211,238,.08),transparent 40%),
+  radial-gradient(circle at 80% 100%,rgba(168,85,247,.08),transparent 40%),
+  var(--bg);color:var(--text);min-height:100vh;padding:18px;display:flex;flex-direction:column;align-items:center}
+header{text-align:center;margin-bottom:16px;max-width:960px}
+h1{font-size:1.5rem;font-weight:300;letter-spacing:1px;margin-bottom:6px}
+h1 i{color:var(--cv)}
+p.subtitle{color:var(--muted);font-size:.86rem}
+p.subtitle code{color:var(--vehicle);background:var(--panel);padding:2px 6px;border-radius:4px}
+
+.controls{display:flex;gap:7px;margin-bottom:18px;flex-wrap:wrap;justify-content:center;max-width:1200px}
+.btn{padding:9px 13px;border:2px solid var(--border);background:var(--panel);color:var(--text);
+  border-radius:8px;cursor:pointer;font-size:.75rem;font-weight:600;transition:all .25s;
+  display:flex;align-items:center;gap:6px;white-space:nowrap}
+.btn:hover:not(:disabled){transform:translateY(-2px);border-color:var(--cv)}
+.btn:disabled{opacity:.35;cursor:not-allowed}
+.btn.active{border-color:var(--cv);background:rgba(34,211,238,.12);box-shadow:0 0 15px rgba(34,211,238,.25)}
+.btn.done{border-color:var(--ok);background:rgba(34,197,94,.12);color:var(--ok)}
+.btn i{font-size:.9rem}
+
+.workspace{display:grid;grid-template-columns:280px 1fr 380px;gap:16px;width:100%;max-width:1650px;align-items:start}
+.panel{background:var(--panel);border:1px solid var(--border);border-radius:12px;padding:14px}
+.panel-title{font-size:.7rem;text-transform:uppercase;letter-spacing:1.5px;color:var(--muted);
+  margin-bottom:12px;padding-bottom:9px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:7px}
+
+.resource-item{background:var(--panel2);border:1px solid var(--border);border-radius:8px;padding:8px 10px;
+  font-size:.7rem;font-family:'Courier New',monospace;color:var(--muted);display:flex;flex-direction:column;
+  gap:2px;margin-bottom:6px;transition:all .4s ease;opacity:.42}
+.resource-item.used{opacity:1;border-color:var(--cv);color:var(--text);background:rgba(34,211,238,.07)}
+.resource-item .name{display:flex;align-items:center;gap:6px}
+.resource-item .name i{font-size:.8rem}
+.resource-item .detail{font-size:.62rem;color:var(--cv);font-weight:bold;word-break:break-all}
+.resource-item .status{font-size:.6rem;color:var(--ok)}
+
+.canvas{display:flex;flex-direction:column;gap:14px}
+.stage-card{background:var(--panel);border:1px solid var(--border);border-radius:12px;padding:14px;
+  opacity:.3;transform:translateY(8px);transition:all .5s ease}
+.stage-card.active{opacity:1;transform:translateY(0);border-color:var(--cv);box-shadow:0 0 25px rgba(34,211,238,.12)}
+.stage-card h2{font-size:.9rem;margin-bottom:10px;display:flex;align-items:center;gap:9px}
+.stage-card h2 .tag{font-size:.56rem;padding:3px 8px;border-radius:10px;background:var(--panel2);
+  color:var(--muted);font-family:monospace;margin-left:auto}
+
+/* Cámara CCTV */
+.camera-box{position:relative;background:#000;border-radius:10px;overflow:hidden;border:1px solid var(--border);aspect-ratio:16/9}
+.camera-box::before{content:'● REC';position:absolute;top:8px;left:10px;color:#ef4444;font-family:monospace;
+  font-size:.62rem;font-weight:bold;z-index:5;text-shadow:0 0 6px #ef4444;animation:blink 1.4s infinite}
+.camera-box::after{content:attr(data-time);position:absolute;top:8px;right:10px;color:#e5e7eb;
+  font-family:monospace;font-size:.62rem;z-index:5;background:rgba(0,0,0,.5);padding:2px 6px;border-radius:3px}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:.3}}
+.cctv-grid{position:absolute;inset:0;background-image:
+  linear-gradient(rgba(34,211,238,.05) 1px,transparent 1px),
+  linear-gradient(90deg,rgba(34,211,238,.05) 1px,transparent 1px);
+  background-size:32px 32px;pointer-events:none}
+.scan-line{position:absolute;left:0;right:0;height:2px;background:linear-gradient(90deg,transparent,var(--cv),transparent);
+  box-shadow:0 0 12px var(--cv);animation:scan 2.2s linear infinite;z-index:4;opacity:.7}
+@keyframes scan{0%{top:0}100%{top:100%}}
+
+/* ROI de plazas */
+.parking-slot{position:absolute;border:2px dashed rgba(148,163,184,.5);border-radius:4px;
+  display:flex;align-items:flex-start;justify-content:flex-end;font-size:.5rem;color:#94a3b8;
+  font-family:monospace;padding:2px 3px;transition:all .4s}
+.parking-slot.free{border-color:var(--ok);background:rgba(34,197,94,.08);color:var(--ok)}
+.parking-slot.occupied{border-color:var(--vehicle);background:rgba(245,158,11,.12);color:var(--vehicle)}
+
+/* Bounding box */
+.bbox{position:absolute;border:2px solid var(--vehicle);border-radius:3px;
+  box-shadow:0 0 10px rgba(245,158,11,.6);animation:fadeIn .4s ease}
+.bbox .label{position:absolute;top:-18px;left:-2px;background:var(--vehicle);color:#000;
+  font-size:.52rem;font-weight:bold;padding:1px 5px;border-radius:2px;font-family:monospace;white-space:nowrap}
+.bbox.plate{border-color:var(--plate);box-shadow:0 0 10px rgba(168,85,247,.7)}
+.bbox.plate .label{background:var(--plate);color:#fff}
+
+/* OCR card */
+.ocr-card{display:none;background:#0a0a0a;border:1px solid var(--plate);border-radius:8px;padding:10px;
+  margin-top:8px;font-family:'Courier New',monospace;font-size:.65rem;position:relative;overflow:hidden}
+.ocr-card.show{display:block;animation:fadeIn .4s ease}
+.ocr-card::before{content:'';position:absolute;inset:0;background:linear-gradient(180deg,transparent,rgba(168,85,247,.15),transparent);
+  animation:ocrscan 1.8s linear infinite;pointer-events:none}
+@keyframes ocrscan{0%{transform:translateY(-100%)}100%{transform:translateY(100%)}}
+.ocr-header{color:var(--plate);margin-bottom:6px;padding-bottom:5px;border-bottom:1px solid rgba(168,85,247,.3);
+  display:flex;justify-content:space-between}
+.ocr-plate{font-size:1.1rem;letter-spacing:4px;color:#fff;background:#1a1a2e;border:2px solid var(--plate);
+  border-radius:6px;padding:6px 14px;text-align:center;font-weight:bold;margin:8px 0;
+  text-shadow:0 0 10px var(--plate);box-shadow:0 0 15px rgba(168,85,247,.4)}
+.ocr-conf{display:flex;justify-content:space-between;color:var(--muted);font-size:.6rem}
+
+/* Pipeline */
+.pipeline-visual{display:flex;align-items:center;justify-content:space-between;gap:4px;padding:14px 0;
+  flex-wrap:wrap;position:relative}
+.pipe-node{flex:1;min-width:88px;text-align:center;padding:10px 6px;border-radius:9px;font-size:.63rem;
+  font-weight:600;border:2px solid var(--border);background:var(--panel2);color:var(--muted);
+  opacity:0;transform:scale(.85);transition:all .5s ease;position:relative}
+.pipe-node.show{opacity:1;transform:scale(1)}
+.pipe-node.edge{border-color:#64748b;color:#cbd5e1;background:rgba(100,116,139,.1)}
+.pipe-node.vision{border-color:var(--cv);color:#67e8f9;background:rgba(34,211,238,.1)}
+.pipe-node.biz{border-color:var(--biz);color:#93c5fd;background:rgba(66,133,244,.1)}
+.pipe-node.data{border-color:var(--vehicle);color:#fde68a;background:rgba(245,158,11,.1)}
+.pipe-node.ui{border-color:var(--ok);color:#86efac;background:rgba(34,197,94,.1)}
+.pipe-node .sub{display:block;font-size:.5rem;font-weight:normal;color:var(--muted);margin-top:2px;font-family:monospace}
+.pipe-node .metric{display:block;font-size:.6rem;color:var(--ok);margin-top:3px;font-weight:bold;font-family:monospace}
+.pipe-arrow{color:var(--border);font-size:.85rem;opacity:0;transition:opacity .4s ease}
+.pipe-arrow.show{opacity:1;color:var(--cv)}
+.pipe-arrow.flowing{color:var(--ok);animation:pulse 1s infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
+
+/* Dashboard KPIs */
+.kpi-grid{display:none;grid-template-columns:repeat(4,1fr);gap:8px;margin-top:8px}
+.kpi-grid.show{display:grid;animation:fadeIn .4s ease}
+.kpi{background:var(--panel2);border:1px solid var(--border);border-radius:8px;padding:10px;text-align:center}
+.kpi .val{font-size:1.3rem;font-weight:bold;font-family:monospace;transition:all .3s}
+.kpi .lbl{font-size:.56rem;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-top:3px}
+.kpi.free .val{color:var(--ok)}
+.kpi.occ .val{color:var(--vehicle)}
+.kpi.plate .val{color:var(--plate)}
+.kpi.rev .val{color:var(--biz)}
+
+/* Heatmap plazas */
+.slots-map{display:none;grid-template-columns:repeat(8,1fr);gap:4px;margin-top:8px}
+.slots-map.show{display:grid;animation:fadeIn .4s ease}
+.slot-dot{aspect-ratio:1;border-radius:4px;background:var(--ok);transition:all .5s;position:relative;
+  display:flex;align-items:center;justify-content:center;font-size:.5rem;color:#000;font-weight:bold;font-family:monospace}
+.slot-dot.occ{background:var(--vehicle)}
+.slot-dot.anim{animation:slotPop .5s ease}
+@keyframes slotPop{0%{transform:scale(1)}50%{transform:scale(1.3)}100%{transform:scale(1)}}
+
+/* Code block */
+.code-block{display:none;background:#0d1117;border-radius:8px;padding:10px;font-family:'Courier New',monospace;
+  font-size:.62rem;border:1px solid var(--border);margin-top:8px;max-height:240px;overflow-y:auto;line-height:1.55}
+.code-block.show{display:block;animation:fadeIn .4s ease}
+.code-block .fname{color:var(--cv);font-weight:bold;display:block;margin-bottom:6px;padding-bottom:4px;
+  border-bottom:1px solid var(--border)}
+.cl{white-space:pre}
+.c-cm{color:#6a9955}.c-kw{color:#c586c0}.c-str{color:#ce9178}.c-fn{color:#dcdcaa}.c-var{color:#9cdcfe}.c-num{color:#b5cea8}
+
+/* Quiz */
+.quiz-box{display:none;margin-top:8px}
+.quiz-box.show{display:block;animation:fadeIn .4s ease}
+.quiz-q{font-size:.8rem;margin-bottom:10px;font-weight:600}
+.quiz-q code{color:var(--vehicle);background:var(--panel2);padding:1px 5px;border-radius:4px}
+.quiz-opts{display:flex;flex-direction:column;gap:7px}
+.quiz-btn{padding:9px 12px;border:2px solid var(--border);background:var(--panel2);color:var(--text);
+  border-radius:8px;cursor:pointer;font-size:.75rem;font-weight:600;text-align:left;transition:all .2s}
+.quiz-btn:hover:not(:disabled){border-color:var(--cv)}
+.quiz-btn:disabled{cursor:not-allowed}
+.quiz-btn.correct{border-color:var(--ok);background:rgba(34,197,94,.15);color:var(--ok)}
+.quiz-btn.incorrect{border-color:var(--err);background:rgba(239,68,68,.15);color:var(--err)}
+.quiz-fb{margin-top:9px;font-size:.72rem;padding:9px;border-radius:6px;display:none}
+.quiz-fb.show{display:block;animation:fadeIn .3s ease}
+.quiz-fb.ok{background:rgba(34,197,94,.12);color:#86efac;border-left:3px solid var(--ok)}
+.quiz-fb.bad{background:rgba(239,68,68,.12);color:#fca5a5;border-left:3px solid var(--err)}
+
+/* Consola */
+.console{font-family:'Courier New',monospace;font-size:.68rem;background:#000;border-radius:8px;padding:13px;
+  height:100%;min-height:500px;max-height:940px;overflow-y:auto;border:1px solid var(--border)}
+.console::-webkit-scrollbar{width:6px}
+.console::-webkit-scrollbar-thumb{background:var(--panel2);border-radius:3px}
+.log-line{margin-bottom:4px;line-height:1.45;animation:fadeIn .3s ease;word-wrap:break-word}
+.log-line.cmd{color:var(--cv);font-weight:bold}
+.log-line.info{color:var(--muted)}
+.log-line.ok{color:var(--ok)}
+.log-line.warn{color:var(--vehicle)}
+.log-line.err{color:var(--err)}
+.log-line.key{color:#93c5fd}
+.log-line.vision{color:#67e8f9}
+.log-line.ml{color:var(--plate)}
+@keyframes fadeIn{from{opacity:0;transform:translateX(-5px)}to{opacity:1;transform:translateX(0)}}
+
+/* Progress */
+.job-progress{display:none;margin-top:9px;background:var(--panel2);border-radius:8px;padding:11px}
+.job-progress.show{display:block}
+.pstep{display:flex;align-items:center;gap:9px;font-size:.66rem;padding:3px 0;color:var(--muted);font-family:monospace}
+.pstep .dot{width:9px;height:9px;border-radius:50%;background:var(--border);flex-shrink:0;transition:all .3s}
+.pstep.ok .dot{background:var(--ok);box-shadow:0 0 8px var(--ok)}
+.pstep.ok{color:var(--text)}
+.pstep.run .dot{background:var(--cv);animation:pulse 1s infinite}
+.pstep.run{color:var(--cv)}
+
+/* Score */
+.score-bar{margin-top:18px;display:flex;gap:20px;align-items:center;background:var(--panel);
+  padding:11px 22px;border-radius:10px;border:1px solid var(--border);font-size:.82rem}
+.score-bar .si{display:flex;align-items:center;gap:7px}
+.score-bar .si i{color:var(--vehicle)}
+.score-bar .sv{color:var(--ok);font-weight:bold;font-family:monospace}
+
+@media(max-width:1250px){.workspace{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+
+<header>
+  <h1><i class="fa-solid fa-car-side"></i> SmartPark Vision</h1>
+  <p class="subtitle">Proyecto end-to-end de Computer Vision · YOLOv8 + OCR + FastAPI + React · Edge → Cloud → Dashboard</p>
+</header>
+
+<div class="controls">
+  <button class="btn" id="bF0" onclick="phase(0)"><i class="fa-solid fa-compass"></i> F0 · Discovery</button>
+  <button class="btn" id="bF1" onclick="phase(1)" disabled><i class="fa-solid fa-code-branch"></i> F1 · Setup MLOps</button>
+  <button class="btn" id="bF2" onclick="phase(2)" disabled><i class="fa-solid fa-eye"></i> F2 · YOLOv8</button>
+  <button class="btn" id="bF3" onclick="phase(3)" disabled><i class="fa-solid fa-font"></i> F3 · OCR Placas</button>
+  <button class="btn" id="bF4" onclick="phase(4)" disabled><i class="fa-solid fa-microchip"></i> F4 · Vision Service</button>
+  <button class="btn" id="bF5" onclick="phase(5)" disabled><i class="fa-solid fa-server"></i> F5 · Backend</button>
+  <button class="btn" id="bF6" onclick="phase(6)" disabled><i class="fa-solid fa-chart-line"></i> F6 · Dashboard</button>
+  <button class="btn" id="bF7" onclick="phase(7)" disabled><i class="fa-solid fa-truck-fast"></i> F7 · Edge Deploy</button>
+  <button class="btn" id="bF8" onclick="phase(8)" disabled><i class="fa-solid fa-vial"></i> F8 · UAT</button>
+  <button class="btn" id="bF9" onclick="phase(9)" disabled><i class="fa-solid fa-rocket"></i> F9 · Go-Live</button>
+  <button class="btn" id="bQuiz" onclick="runQuiz()" disabled><i class="fa-solid fa-question"></i> Quiz</button>
+  <button class="btn" id="bReset" onclick="resetAll()" style="border-color:#ef4444;color:#fca5a5"><i class="fa-solid fa-rotate-left"></i></button>
+</div>
+
+<div class="workspace">
+
+  <!-- COL 1: Recursos -->
+  <div class="panel">
+    <div class="panel-title"><i class="fa-solid fa-cubes"></i> Recursos del Proyecto</div>
+    <div id="resList">
+      <div class="resource-item" data-r="cams"><div class="name"><i class="fa-solid fa-video" style="color:#64748b"></i> Cámaras IP</div><div class="detail">4 RTSP streams</div></div>
+      <div class="resource-item" data-r="rois"><div class="name"><i class="fa-solid fa-vector-square" style="color:var(--cv)"></i> ROIs de plazas</div><div class="detail">64 slots</div></div>
+      <div class="resource-item" data-r="dataset"><div class="name"><i class="fa-solid fa-images" style="color:var(--vehicle)"></i> Dataset vehículos</div><div class="detail">12k imgs anotadas</div></div>
+      <div class="resource-item" data-r="yolo"><div class="name"><i class="fa-solid fa-eye" style="color:var(--vehicle)"></i> YOLOv8 model</div><div class="detail">best.pt</div><div class="status"></div></div>
+      <div class="resource-item" data-r="ocr"><div class="name"><i class="fa-solid fa-font" style="color:var(--plate)"></i> PaddleOCR</div><div class="detail">plate-rec es</div><div class="status"></div></div>
+      <div class="resource-item" data-r="redis"><div class="name"><i class="fa-solid fa-bolt" style="color:#ef4444"></i> Redis Streams</div><div class="detail">vision:events</div><div class="status"></div></div>
+      <div class="resource-item" data-r="pg"><div class="name"><i class="fa-solid fa-database" style="color:var(--biz)"></i> PostgreSQL</div><div class="detail">smartpark_db</div><div class="status"></div></div>
+      <div class="resource-item" data-r="api"><div class="name"><i class="fa-solid fa-plug" style="color:var(--biz)"></i> FastAPI Backend</div><div class="detail">/api/v1/*</div><div class="status"></div></div>
+      <div class="resource-item" data-r="dash"><div class="name"><i class="fa-solid fa-chart-line" style="color:var(--ok)"></i> Dashboard React</div><div class="detail">operator.local</div><div class="status"></div></div>
+      <div class="resource-item" data-r="edge"><div class="name"><i class="fa-solid fa-microchip" style="color:#64748b"></i> Jetson Edge Node</div><div class="detail">orin-nano-01</div><div class="status"></div></div>
+      <div class="resource-item" data-r="k8s"><div class="name"><i class="fa-solid fa-dharmachakra" style="color:#326ce5"></i> GKE Cluster</div><div class="detail">smartpark-prod</div><div class="status"></div></div>
+      <div class="resource-item" data-r="mlflow"><div class="name"><i class="fa-solid fa-flask" style="color:#0194e2"></i> MLflow Tracking</div><div class="detail">runs/exp-042</div><div class="status"></div></div>
+    </div>
+  </div>
+
+  <!-- COL 2: Canvas -->
+  <div class="canvas">
+
+    <!-- Cámara CCTV + detección -->
+    <div class="stage-card" id="stCam">
+      <h2><i class="fa-solid fa-video" style="color:var(--cv)"></i> Cámara en vivo · Detección YOLOv8 <span class="tag" id="camTag">F0</span></h2>
+      <div class="camera-box" id="camBox" data-time="--:--:--">
+        <div class="cctv-grid"></div>
+        <div class="scan-line"></div>
+        <!-- slots -->
+        <div class="parking-slot" style="left:4%;top:8%;width:20%;height:34%" data-slot="0">P01</div>
+        <div class="parking-slot" style="left:27%;top:8%;width:20%;height:34%" data-slot="1">P02</div>
+        <div class="parking-slot" style="left:50%;top:8%;width:20%;height:34%" data-slot="2">P03</div>
+        <div class="parking-slot" style="left:73%;top:8%;width:20%;height:34%" data-slot="3">P04</div>
+        <div class="parking-slot" style="left:4%;top:54%;width:20%;height:34%" data-slot="4">P05</div>
+        <div class="parking-slot" style="left:27%;top:54%;width:20%;height:34%" data-slot="5">P06</div>
+        <div class="parking-slot" style="left:50%;top:54%;width:20%;height:34%" data-slot="6">P07</div>
+        <div class="parking-slot" style="left:73%;top:54%;width:20%;height:34%" data-slot="7">P08</div>
+      </div>
+    </div>
+
+    <!-- OCR card -->
+    <div class="stage-card" id="stOcr">
+      <h2><i class="fa-solid fa-font" style="color:var(--plate)"></i> Lectura de Placa (OCR) <span class="tag">F3</span></h2>
+      <div class="ocr-card" id="ocrCard">
+        <div class="ocr-header"><span><i class="fa-solid fa-camera"></i> Crop detector → OCR</span><span id="ocrTime">--:--:--</span></div>
+        <div class="ocr-plate" id="ocrPlate">------</div>
+        <div class="ocr-conf"><span>País: ES · Formato: NNNN LLL</span><span id="ocrConf">conf: --</span></div>
+      </div>
+    </div>
+
+    <!-- Pipeline -->
+    <div class="stage-card" id="stPipe">
+      <h2><i class="fa-solid fa-diagram-project" style="color:var(--cv)"></i> Pipeline end-to-end <span class="tag" id="pipeTag">F4</span></h2>
+      <div class="pipeline-visual" id="pipeViz"></div>
+      <div class="job-progress" id="jobProg">
+        <div class="pstep" data-s="edge"><span class="dot"></span> Edge Agent: frame grabber RTSP</div>
+        <div class="pstep" data-s="yolo"><span class="dot"></span> YOLOv8: detección + tracking</div>
+        <div class="pstep" data-s="ocr"><span class="dot"></span> OCR: lectura de placa</div>
+        <div class="pstep" data-s="bus"><span class="dot"></span> Event bus: Redis Streams</div>
+        <div class="pstep" data-s="biz"><span class="dot"></span> Backend: occupancy + tariff</div>
+        <div class="pstep" data-s="db"><span class="dot"></span> PostgreSQL: persistencia</div>
+        <div class="pstep" data-s="ui"><span class="dot"></span> Dashboard: actualización WebSocket</div>
+      </div>
+    </div>
+
+    <!-- Dashboard KPIs -->
+    <div class="stage-card" id="stDash">
+      <h2><i class="fa-solid fa-chart-line" style="color:var(--ok)"></i> Dashboard operador · tiempo real <span class="tag">F6</span></h2>
+      <div class="kpi-grid" id="kpiGrid">
+        <div class="kpi free"><div class="val" id="kFree">--</div><div class="lbl">Libres</div></div>
+        <div class="kpi occ"><div class="val" id="kOcc">--</div><div class="lbl">Ocupadas</div></div>
+        <div class="kpi plate"><div class="val" id="kPlate">--</div><div class="lbl">Placas hoy</div></div>
+        <div class="kpi rev"><div class="val" id="kRev">--</div><div class="lbl">Ingresos €</div></div>
+      </div>
+      <div class="slots-map" id="slotsMap"></div>
+    </div>
+
+    <!-- Código -->
+    <div class="stage-card" id="stCode">
+      <h2><i class="fa-solid fa-code" style="color:var(--cv)"></i> Código del servicio <span class="tag" id="codeTag">F2</span></h2>
+      <div class="code-block" id="codeBlock"></div>
+    </div>
+
+    <!-- Quiz -->
+    <div class="stage-card" id="stQuiz">
+      <h2><i class="fa-solid fa-question" style="color:var(--ok)"></i> Test de comprensión <span class="tag">Quiz</span></h2>
+      <div class="quiz-box" id="quizBox">
+        <div class="quiz-q"><i class="fa-solid fa-circle-question" style="color:var(--vehicle)"></i> ¿Cómo se determina que una plaza está <b>ocupada</b> en este sistema?</div>
+        <div class="quiz-opts">
+          <button class="quiz-btn" id="qA" onclick="answerQuiz('a')">A) Sensores de peso bajo el asfalto</button>
+          <button class="quiz-btn" id="qB" onclick="answerQuiz('b')">B) IoU entre bounding box del vehículo y el ROI de la plaza</button>
+          <button class="quiz-btn" id="qC" onclick="answerQuiz('c')">C) Lectura del ticket de entrada</button>
+        </div>
+        <div class="quiz-fb" id="quizFb"></div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- COL 3: Consola -->
+  <div class="panel" style="padding:0;background:transparent;border:none">
+    <div class="console" id="console">
+      <div class="log-line info">// SmartPark Vision · consola del proyecto</div>
+      <div class="log-line info">// Presiona "F0 · Discovery" para comenzar</div>
+    </div>
+  </div>
+
+</div>
+
+<div class="score-bar">
+  <div class="si"><i class="fa-solid fa-star"></i> Score:</div>
+  <div class="si"><span class="sv" id="scoreVal">0</span> / 100</div>
+  <div class="si" style="margin-left:auto;color:var(--muted);font-size:.72rem">
+    <i class="fa-solid fa-clock"></i> Proyecto end-to-end · 10 fases
+  </div>
+</div>
+
+<script>
+const C=document.getElementById('console');
+const wait=ms=>new Promise(r=>setTimeout(r,ms));
+let score=0, slotState=[0,0,0,0,0,0,0,0], plateCount=0, revenue=0, yoloReady=false, ocrReady=false;
+
+function log(t,cls='info'){const d=document.createElement('div');d.className='log-line '+cls;d.innerHTML=t;C.appendChild(d);C.scrollTop=C.scrollHeight;}
+function clr(){C.innerHTML='<div class="log-line info">// Consola reiniciada</div>';}
+function addScore(p){score=Math.min(100,score+p);document.getElementById('scoreVal').textContent=score;}
+function mark(r,d,s){const el=document.querySelector(`.resource-item[data-r="${r}"]`);if(!el)return;el.classList.add('used');if(d)el.querySelector('.detail').textContent=d;if(s){const st=el.querySelector('.status');if(st)st.textContent=s;}}
+
+function clock(){const now=new Date();return now.toTimeString().substr(0,8);}
+setInterval(()=>{document.getElementById('camBox').dataset.time=clock();},1000);
+
+/* === Animación de vehículo + bbox + OCR === */
+async function spawnVehicle(slotIdx){
+  if(slotIdx===undefined) slotIdx=Math.floor(Math.random()*8);
+  const box=document.getElementById('camBox');
+  const slot=document.querySelector(`[data-slot="${slotIdx}"]`);
+  if(!slot||slot.dataset.occupied==='1') return null;
+
+  // Bounding box del vehículo
+  const bb=document.createElement('div');
+  bb.className='bbox';
+  bb.style.left=slot.style.left;bb.style.top=slot.style.top;
+  bb.style.width=slot.style.width;bb.style.height=slot.style.height;
+  bb.innerHTML='<span class="label">vehicle 0.'+(88+Math.floor(Math.random()*11))+'</span>';
+  box.appendChild(bb);
+
+  // Marcar slot ocupado
+  slot.classList.remove('free');slot.classList.add('occupied');
+  slot.dataset.occupied='1';slotState[slotIdx]=1;
+  updateSlotsMap();
+
+  await wait(900);
+
+  // Bbox de placa dentro del vehículo
+  const pb=document.createElement('div');
+  pb.className='bbox plate';
+  pb.style.left=(parseFloat(slot.style.left)+4)+'%';
+  pb.style.top=(parseFloat(slot.style.top)+parseFloat(slot.style.height)-18)+'%';
+  pb.style.width='12%';pb.style.height='10%';
+  pb.innerHTML='<span class="label">plate</span>';
+  box.appendChild(pb);
+
+  if(ocrReady){
+    await wait(600);
+    const letters='BCDFGHJKLMNPRSTVWXYZ';
+    const plate=Math.floor(1000+Math.random()*9000)+' '+letters[Math.floor(Math.random()*letters.length)]+letters[Math.floor(Math.random()*letters.length)]+letters[Math.floor(Math.random()*letters.length)];
+    document.getElementById('ocrPlate').textContent=plate;
+    document.getElementById('ocrTime').textContent=clock();
+    document.getElementById('ocrConf').textContent='conf: '+(92+Math.random()*6).toFixed(1)+'%';
+    plateCount++;revenue+=2.5;
+    log(`  → OCR placa: <b>${plate}</b> (conf ${(92+Math.random()*6).toFixed(1)}%)`,'ml');
+  }
+
+  setTimeout(async()=>{
+    bb.remove();pb.remove();
+    slot.classList.remove('occupied');
+    if(Math.random()>0.5){slot.classList.add('free');slot.dataset.occupied='0';slotState[slotIdx]=0;}
+    else{slot.dataset.occupied='0';slotState[slotIdx]=0;}
+    updateSlotsMap();
+  },4500+Math.random()*2000);
+
+  return slotIdx;
+}
+
+function updateSlotsMap(){
+  const map=document.getElementById('slotsMap');
+  if(!map.classList.contains('show'))return;
+  map.querySelectorAll('.slot-dot').forEach((d,i)=>{d.classList.toggle('occ',slotState[i]===1);});
+}
+
+function initSlotsMap(){
+  const map=document.getElementById('slotsMap');
+  map.innerHTML='';
+  for(let i=0;i<64;i++){
+    const d=document.createElement('div');
+    d.className='slot-dot';
+    d.textContent=i+1;
+    map.appendChild(d);
+  }
+}
+
+/* === Pipeline builder === */
+function buildPipe(nodes){
+  const v=document.getElementById('pipeViz');
+  v.innerHTML='';
+  nodes.forEach((n,i)=>{
+    const d=document.createElement('div');
+    d.className=`pipe-node ${n.t}`;
+    d.innerHTML=`<i class="fa-solid ${n.i}"></i> ${n.l}<span class="sub">${n.s}</span>`;
+    v.appendChild(d);
+    if(i<nodes.length-1){
+      const a=document.createElement('div');
+      a.className='pipe-arrow';
+      a.innerHTML='<i class="fa-solid fa-arrow-right"></i>';
+      v.appendChild(a);
+    }
+  });
+}
+async function showPipe(){for(const n of document.querySelectorAll('.pipe-node')){n.classList.add('show');await wait(300);}for(const a of document.querySelectorAll('.pipe-arrow')){a.classList.add('show');await wait(120);}}
+async function flowPipe(){for(const a of document.querySelectorAll('.pipe-arrow'))a.classList.add('flowing');}
+
+/* === Fases === */
+async function phase(n){
+  const btn=document.getElementById('bF'+n);
+  btn.disabled=true;
+  if(n>0){clr();}
+
+  if(n===0){
+    document.getElementById('stCam').classList.add('active');
+    document.getElementById('camTag').textContent='F0';
+    log('// F0 · Discovery','info');
+    log('$ python scan_cameras.py --network 192.168.1.0/24','cmd');
+    await wait(700);
+    log('Detectadas 4 cámaras IP RTSP:','ok');
+    log('  · cam-entrada-01  rtsp://192.168.1.21/stream','key');
+    log('  · cam-nivel-1-01  rtsp://192.168.1.22/stream','key');
+    log('  · cam-nivel-1-02  rtsp://192.168.1.23/stream','key');
+    log('  · cam-salida-01   rtsp://192.168.1.24/stream','key');
+    await wait(500);
+    mark('cams','4 RTSP streams','✓ detectadas');
+    log('','info');
+    log('$ python annotate_rois.py --slots 64','cmd');
+    await wait(700);
+    log('Anotando ROIs de plazas sobre snapshot de cada cámara...','vision');
+    // Marcar slots
+    document.querySelectorAll('.parking-slot').forEach(s=>{s.classList.add('free');s.dataset.occupied='0';});
+    await wait(800);
+    log('✓ 64 ROIs guardadas en slots.json','ok');
+    mark('rois','64 slots','✓ anotadas');
+    addScore(8);
+    btn.classList.add('done');
+    document.getElementById('bF1').disabled=false;
+    document.getElementById('bF1').classList.add('active');
+    // Demo de un vehículo pasando
+    setTimeout(()=>spawnVehicle(2),800);
+    setTimeout(()=>spawnVehicle(5),2200);
+  }
+
+  if(n===1){
+    log('// F1 · Setup MLOps','info');
+    log('$ git init smartpark-vision && cd smartpark-vision','cmd');
+    await wait(400);
+    log('$ cookiecutter https://github.com/mlops-template/cv-project','cmd');
+    await wait(700);
+    log('Estructura:','key');
+    log('  ├── data/  (DVC tracked)','key');
+    log('  ├── models/  (MLflow)','key');
+    log('  ├── services/  (vision, backend)','key');
+    log('  ├── edge/  (Jetson agent)','key');
+    log('  └── .github/workflows/ci.yml','key');
+    await wait(600);
+    log('$ dvc init && dvc add data/vehicles_12k/','cmd');
+    await wait(800);
+    log('✓ Dataset 12k imágenes versionado con DVC','ok');
+    mark('dataset','12k imgs anotadas','✓ DVC v1.0');
+    await wait(400);
+    log('$ mlflow experiments create --name smartpark-yolo','cmd');
+    await wait(600);
+    log('✓ Experimento MLflow creado','ok');
+    mark('mlflow','runs/exp-042','✓ listo');
+    await wait(400);
+    log('$ gh workflow run ci.yml','cmd');
+    await wait(700);
+    log('✓ CI: lint + tests + build docker OK','ok');
+    addScore(8);
+    btn.classList.add('done');
+    document.getElementById('bF2').disabled=false;
+    document.getElementById('bF2').classList.add('active');
+  }
+
+  if(n===2){
+    document.getElementById('stCode').classList.add('active');
+    document.getElementById('codeTag').textContent='F2 · train.py';
+    log('// F2 · Entrenamiento YOLOv8','info');
+    const cb=document.getElementById('codeBlock');cb.classList.add('show');
+    cb.innerHTML='<span class="fname">train.py</span>';
+    const lines=[
+      '<span class="c-kw">from</span> ultralytics <span class="c-kw">import</span> YOLO',
+      '<span class="c-kw">import</span> mlflow',
+      '',
+      '<span class="c-cm"># Cargar modelo preentrenado</span>',
+      'model = YOLO(<span class="c-str">"yolov8n.pt"</span>)',
+      '',
+      '<span class="c-cm"># Fine-tuning sobre dataset de vehículos</span>',
+      'results = model.train(',
+      '    data=<span class="c-str">"data/vehicles.yaml"</span>,',
+      '    epochs=<span class="c-num">80</span>,',
+      '    imgsz=<span class="c-num">640</span>,',
+      '    batch=<span class="c-num">32</span>,',
+      '    device=<span class="c-str">"cuda:0"</span>,',
+      '    project=<span class="c-str">"runs/yolo"</span>',
+      ')',
+      '',
+      '<span class="c-cm"># Registrar métricas en MLflow</span>',
+      'mlflow.log_metric(<span class="c-str">"mAP@0.5"</span>, results.box.map50)',
+      'mlflow.log_artifact(<span class="c-str">"runs/yolo/weights/best.pt"</span>)'
+    ];
+    for(const l of lines){const d=document.createElement('div');d.className='cl';d.innerHTML=l||'&nbsp;';cb.appendChild(d);await wait(50);}
+    await wait(500);
+    log('$ python train.py','cmd');
+    await wait(800);
+    for(let e=1;e<=6;e++){
+      const mAP=(0.62+e*0.048+Math.random()*0.01).toFixed(3);
+      log(`  Epoch ${e}/80  mAP@0.5=${mAP}  loss=${(1.8-e*0.22).toFixed(3)}`,'vision');
+      await wait(300);
+    }
+    log('  ... (74 epochs más omitidas)','info');
+    await wait(600);
+    log('✓ Entrenamiento completo','ok');
+    log('  mAP@0.5    = 0.914 ✓ (target 0.90)','ok');
+    log('  Precision  = 0.931','ok');
+    log('  Recall     = 0.889','ok');
+    mark('yolo','best.pt · mAP 0.914','✓ fine-tuned');
+    yoloReady=true;
+    await wait(400);
+    log('$ mlflow artifacts download best.pt → models/yolo/','cmd');
+    await wait(600);
+    log('✓ Modelo registrado en MLflow Model Registry','ok');
+    addScore(12);
+    btn.classList.add('done');
+    document.getElementById('bF3').disabled=false;
+    document.getElementById('bF3').classList.add('active');
+  }
+
+  if(n===3){
+    document.getElementById('stOcr').classList.add('active');
+    document.getElementById('ocrCard').classList.add('show');
+    document.getElementById('stCode').classList.add('active');
+    document.getElementById('codeTag').textContent='F3 · ocr_service.py';
+    log('// F3 · OCR de placas','info');
+    const cb=document.getElementById('codeBlock');cb.innerHTML='<span class="fname">ocr_service.py</span>';
+    const lines=[
+      '<span class="c-kw">from</span> paddleocr <span class="c-kw">import</span> PaddleOCR',
+      '<span class="c-kw">import</span> re',
+      '',
+      'ocr = PaddleOCR(lang=<span class="c-str">"es"</span>, use_angle_cls=<span class="c-kw">True</span>)',
+      '',
+      '<span class="c-kw">def</span> <span class="c-fn">read_plate</span>(crop_img):',
+      '    result = ocr.ocr(crop_img, cls=<span class="c-kw">True</span>)',
+      '    text = <span class="c-str">""</span>.join([r[<span class="c-num">1</span>][<span class="c-num">0</span>] <span class="c-kw">for</span> r <span class="c-kw">in</span> result[<span class="c-num">0</span>]])',
+      '    <span class="c-cm"># Normalizar formato ES: 1234 ABC</span>',
+      '    plate = re.sub(<span class="c-str">r"[^A-Z0-9]"</span>, <span class="c-str">""</span>, text.upper())',
+      '    <span class="c-kw">if</span> re.match(<span class="c-str">r"^\\d{4}[A-Z]{3}$"</span>, plate):',
+      '        <span class="c-kw">return</span> plate, result[<span class="c-num">0</span>][<span class="c-num">1</span>][<span class="c-num">1</span>]',
+      '    <span class="c-kw">return</span> <span class="c-kw">None</span>, <span class="c-num">0</span>'
+    ];
+    for(const l of lines){const d=document.createElement('div');d.className='cl';d.innerHTML=l||'&nbsp;';cb.appendChild(d);await wait(45);}
+    await wait(500);
+    log('$ python test_ocr.py --dataset plates_test/','cmd');
+    await wait(700);
+    log('Evaluando 500 crops de placa...','vision');
+    await wait(900);
+    log('✓ Accuracy: 0.923 (target 0.92)','ok');
+    log('  Latencia media: 38ms/placa (Jetson Orin)','ok');
+    mark('ocr','plate-rec es · acc 0.923','✓ listo');
+    ocrReady=true;
+    await wait(500);
+    // Demo OCR
+    spawnVehicle(1);
+    await wait(400);
+    addScore(12);
+    btn.classList.add('done');
+    document.getElementById('bF4').disabled=false;
+    document.getElementById('bF4').classList.add('active');
+  }
+
+  if(n===4){
+    document.getElementById('stPipe').classList.add('active');
+    document.getElementById('pipeTag').textContent='F4 · Vision Service';
+    log('// F4 · Vision Service (gRPC + tracking)','info');
+    buildPipe([
+      {t:'edge',i:'fa-video',l:'Edge',s:'RTSP → JPEG'},
+      {t:'vision',i:'fa-eye',l:'YOLOv8',s:'detect + ByteTrack'},
+      {t:'vision',i:'fa-font',l:'OCR',s:'plate reading'},
+      {t:'data',i:'fa-bolt',l:'Redis',s:'vision:events'}
+    ]);
+    await showPipe();
+    log('$ docker compose up vision-service','cmd');
+    await wait(800);
+    log('vision-service listening on :50051 (gRPC)','vision');
+    await wait(500);
+    log('$ grpcurl -d \'{"camera_id":"cam-nivel-1-01"}\' :50051 Vision.Detect','cmd');
+    await wait(900);
+    log('  → 3 vehicles detected, 2 slots occupied','vision');
+    log('  → event published: slot_occupied P02','vision');
+    log('  → event published: slot_occupied P07','vision');
+    await wait(600);
+    log('✓ Tracking ByteTrack estable (ID persistence 98.4%)','ok');
+    mark('redis','vision:events','✓ stream activo');
+    await wait(400);
+    await flowPipe();
+    // Simular eventos
+    spawnVehicle(0);await wait(300);spawnVehicle(6);
+    addScore(12);
+    btn.classList.add('done');
+    document.getElementById('bF5').disabled=false;
+    document.getElementById('bF5').classList.add('active');
+  }
+
+  if(n===5){
+    log('// F5 · Backend de negocio','info');
+    log('$ cd services/backend && uvicorn app.main:app --reload','cmd');
+    await wait(700);
+    log('FastAPI iniciado en http://0.0.0.0:8000','biz');
+    await wait(400);
+    log('$ alembic upgrade head','cmd');
+    await wait(800);
+    log('✓ Migraciones aplicadas: slots, tickets, plates, transactions','ok');
+    mark('pg','smartpark_db','✓ migrado');
+    await wait(400);
+    log('POST /api/v1/events/occupancy  200 OK (12ms)','biz');
+    log('POST /api/v1/plates/read       201 Created (18ms)','biz');
+    log('GET  /api/v1/slots             200 OK (8ms)','biz');
+    log('POST /api/v1/tickets/checkout  200 OK → tariff=3.50€','biz');
+    await wait(500);
+    log('✓ 4 servicios: occupancy, plate, tariff, tickets','ok');
+    mark('api','/api/v1/*','✓ running');
+    addScore(12);
+    btn.classList.add('done');
+    document.getElementById('bF6').disabled=false;
+    document.getElementById('bF6').classList.add('active');
+  }
+
+  if(n===6){
+    document.getElementById('stDash').classList.add('active');
+    document.getElementById('kpiGrid').classList.add('show');
+    document.getElementById('slotsMap').classList.add('show');
+    initSlotsMap();
+    log('// F6 · Dashboard operador (React + WebSocket)','info');
+    log('$ npm run dev','cmd');
+    await wait(700);
+    log('VITE ready · http://localhost:5173','ok');
+    await wait(500);
+    log('WS connected: ws://localhost:8000/ws/live','biz');
+    await wait(400);
+    // Actualizar KPIs en vivo
+    for(let i=0;i<8;i++){
+      await spawnVehicle();
+      const occupied=slotState.filter(s=>s===1).length;
+      document.getElementById('kFree').textContent=8-occupied;
+      document.getElementById('kOcc').textContent=occupied;
+      document.getElementById('kPlate').textContent=plateCount;
+      document.getElementById('kRev').textContent=revenue.toFixed(2);
+      await wait(500);
+    }
+    mark('dash','operator.local','✓ live');
+    log('✓ Dashboard recibiendo updates vía WebSocket','ok');
+    addScore(12);
+    btn.classList.add('done');
+    document.getElementById('bF7').disabled=false;
+    document.getElementById('bF7').classList.add('active');
+  }
+
+  if(n===7){
+    log('// F7 · Edge deployment (Jetson)','info');
+    log('$ ssh jetson@orin-nano-01','cmd');
+    await wait(600);
+    log('$ docker load < smartpark-edge.tar','cmd');
+    await wait(800);
+    log('✓ Imagen cargada (1.2 GB, incluye YOLOv8 + OCR)','ok');
+    mark('edge','orin-nano-01','✓ deployado');
+    await wait(400);
+    log('$ docker run -d --runtime nvidia --network host smartpark-edge','cmd');
+    await wait(800);
+    log('Edge agent conectado a 4 RTSP streams','vision');
+    log('GPU: Jetson Orin · 28 FPS por cámara','vision');
+    log('Latencia end-to-end: 140ms','vision');
+    await wait(500);
+    log('$ kubectl apply -f k8s/backend.yaml','cmd');
+    await wait(800);
+    log('deployment.apps/backend created','ok');
+    log('service/backend created','ok');
+    mark('k8s','smartpark-prod','✓ desplegado');
+    await wait(400);
+    log('✓ Edge + Cloud sincronizados','ok');
+    addScore(10);
+    btn.classList.add('done');
+    document.getElementById('bF8').disabled=false;
+    document.getElementById('bF8').classList.add('active');
+  }
+
+  if(n===8){
+    log('// F8 · UAT + Piloto','info');
+    log('$ pytest tests/uat --cov=app --cov-report=term','cmd');
+    await wait(900);
+    log('tests/test_occupancy.py ....  4 passed','ok');
+    log('tests/test_plate.py ........  8 passed','ok');
+    log('tests/test_tariff.py ......  6 passed','ok');
+    log('tests/test_e2e.py .........  5 passed','ok');
+    await wait(500);
+    log('  Coverage: 91.3%','ok');
+    await wait(500);
+    log('Piloto 1 estacionamiento · 72h','vision');
+    log('  Placas leídas: 1,247','key');
+    log('  Precisión OCR: 91.8%','ok');
+    log('  Detección ocupación: 96.4%','ok');
+    log('  Ingresos registrados: 3,118€','ok');
+    log('  Fraude detectado: 12 casos','warn');
+    await wait(600);
+    log('✓ UAT aprobado · firma cliente OK','ok');
+    addScore(10);
+    btn.classList.add('done');
+    document.getElementById('bF9').disabled=false;
+    document.getElementById('bF9').classList.add('active');
+  }
+
+  if(n===9){
+    log('// F9 · Go-Live','info');
+    log('$ terraform apply -var="env=prod" -var="sites=12"','cmd');
+    await wait(1000);
+    log('  + google_container_cluster.smartpark-prod','key');
+    log('  + google_container_node_pool.vision-gpu','key');
+    log('  + google_sql_database.smartpark','key');
+    log('Apply complete! 12 sites provisioned','ok');
+    await wait(700);
+    log('✓ 12 estacionamientos en producción','ok');
+    log('  · 48 cámaras IP · 768 plazas monitoreadas','key');
+    log('  · 3 Jetson edge · 1 cluster GKE','key');
+    log('  · Uptime SLA: 99.9%','ok');
+    await wait(600);
+    log('// Monitoreo: Grafana + Prometheus + Sentry','info');
+    log('  · Detecciones/s: 24.7','vision');
+    log('  · Latencia p95: 180ms','vision');
+    log('  · Errores: 0.02%','ok');
+    await wait(500);
+    log('✓ PROYECTO COMPLETADO','ok');
+    log('=== SmartPark Vision en producción ===','ok');
+    addScore(14);
+    btn.classList.add('done');
+    document.getElementById('bQuiz').disabled=false;
+    document.getElementById('bQuiz').classList.add('active');
+  }
+}
+
+function runQuiz(){
+  document.getElementById('stQuiz').classList.add('active');
+  document.getElementById('quizBox').classList.add('show');
+  log('','info');
+  log('// Quiz final','info');
+  document.getElementById('bQuiz').disabled=true;
+}
+
+function answerQuiz(a){
+  const A=document.getElementById('qA'),B=document.getElementById('qB'),Cb=document.getElementById('qC');
+  A.disabled=B.disabled=Cb.disabled=true;
+  const fb=document.getElementById('quizFb');
+  if(a==='b'){
+    B.classList.add('correct');
+    fb.className='quiz-fb show ok';
+    fb.innerHTML='<b>¡Correcto!</b> La plaza se marca ocupada cuando el <b>IoU</b> (Intersection over Union) entre el bounding box del vehículo detectado por YOLOv8 y el ROI de la plaza supera un umbral (típicamente 0.4). No se necesitan sensores físicos.';
+    log('✓ Quiz correcto: IoU vehículo ↔ ROI','ok');
+    addScore(10);
+  }else{
+    if(a==='a')A.classList.add('incorrect');
+    else Cb.classList.add('incorrect');
+    B.classList.add('correct');
+    fb.className='quiz-fb show bad';
+    fb.innerHTML='<b>Incorrecto.</b> La respuesta correcta es <b>B</b>: se usa IoU entre el bounding box del vehículo (YOLOv8) y el ROI de la plaza anotado en F0. Sin sensores físicos.';
+    log('✗ Quiz incorrecto · respuesta correcta: B','warn');
+  }
+  setTimeout(()=>{
+    log('','info');
+    log('=== PROYECTO COMPLETADO ===','ok');
+    log('Score final: '+score+' / 100','ok');
+    log('SmartPark Vision · Computer Vision end-to-end','key');
+    document.getElementById('bQuiz').classList.add('done');
+  },900);
+}
+
+function resetAll(){
+  score=0;slotState=[0,0,0,0,0,0,0,0];plateCount=0;revenue=0;yoloReady=false;ocrReady=false;
+  document.getElementById('scoreVal').textContent='0';
+  document.querySelectorAll('.resource-item').forEach(el=>{el.classList.remove('used');const st=el.querySelector('.status');if(st)st.textContent='';});
+  document.querySelectorAll('.stage-card').forEach(el=>el.classList.remove('active'));
+  document.querySelectorAll('.pipe-node,.pipe-arrow').forEach(el=>el.classList.remove('show','flowing'));
+  document.querySelectorAll('.pstep').forEach(el=>el.classList.remove('ok','run'));
+  document.querySelectorAll('.bbox').forEach(el=>el.remove());
+  document.querySelectorAll('.parking-slot').forEach(s=>{s.classList.remove('free','occupied');s.dataset.occupied='0';});
+  document.getElementById('ocrCard').classList.remove('show');
+  document.getElementById('ocrPlate').textContent='------';
+  document.getElementById('codeBlock').classList.remove('show');document.getElementById('codeBlock').innerHTML='';
+  document.getElementById('kpiGrid').classList.remove('show');
+  document.getElementById('slotsMap').classList.remove('show');document.getElementById('slotsMap').innerHTML='';
+  document.getElementById('jobProg').classList.remove('show');
+  document.getElementById('quizBox').classList.remove('show');
+  document.getElementById('quizFb').className='quiz-fb';document.getElementById('quizFb').innerHTML='';
+  ['qA','qB','qC'].forEach(id=>{const b=document.getElementById(id);b.disabled=false;b.className='quiz-btn';});
+  ['bF0','bF1','bF2','bF3','bF4','bF5','bF6','bF7','bF8','bF9','bQuiz'].forEach((id,i)=>{
+    const b=document.getElementById(id);b.disabled=(i!==0);b.classList.remove('active','done');
+  });
+  document.getElementById('bF0').disabled=false;
+  document.getElementById('kFree').textContent='--';
+  document.getElementById('kOcc').textContent='--';
+  document.getElementById('kPlate').textContent='--';
+  document.getElementById('kRev').textContent='--';
+  clr();
+}
+</script>
+</body>
+</html>

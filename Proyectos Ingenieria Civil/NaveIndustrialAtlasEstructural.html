@@ -1,0 +1,863 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Nave Industrial Atlas · Estructura Mixta Concreto-Acero</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<style>
+:root{
+  --bg:#0a0e17; --panel:#121826; --panel2:#1e293b; --text:#f1f5f9; --muted:#94a3b8;
+  --conc:#a8a29e; --conc2:#78716c; --steel:#38bdf8; --steel2:#0ea5e9;
+  --accent:#f59e0b; --ok:#22c55e; --err:#ef4444; --border:#1e293b;
+  --load:#f43f5e; --sismo:#a855f7;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Segoe UI',Roboto,sans-serif;background:
+  radial-gradient(circle at 15% 0%,rgba(168,162,158,.09),transparent 40%),
+  radial-gradient(circle at 85% 100%,rgba(56,189,248,.08),transparent 40%),
+  var(--bg);color:var(--text);min-height:100vh;padding:18px;display:flex;flex-direction:column;align-items:center}
+header{text-align:center;margin-bottom:16px;max-width:980px}
+h1{font-size:1.5rem;font-weight:300;letter-spacing:1px;margin-bottom:6px}
+h1 i{color:var(--accent)}
+p.subtitle{color:var(--muted);font-size:.85rem}
+p.subtitle code{color:var(--accent);background:var(--panel);padding:2px 6px;border-radius:4px}
+
+.controls{display:flex;gap:6px;margin-bottom:18px;flex-wrap:wrap;justify-content:center;max-width:1300px}
+.btn{padding:9px 12px;border:2px solid var(--border);background:var(--panel);color:var(--text);
+  border-radius:8px;cursor:pointer;font-size:.72rem;font-weight:600;transition:all .25s;
+  display:flex;align-items:center;gap:6px;white-space:nowrap}
+.btn:hover:not(:disabled){transform:translateY(-2px);border-color:var(--accent)}
+.btn:disabled{opacity:.35;cursor:not-allowed}
+.btn.active{border-color:var(--accent);background:rgba(245,158,11,.12);box-shadow:0 0 15px rgba(245,158,11,.25)}
+.btn.done{border-color:var(--ok);background:rgba(34,197,94,.12);color:var(--ok)}
+.btn i{font-size:.88rem}
+
+.workspace{display:grid;grid-template-columns:280px 1fr 380px;gap:16px;width:100%;max-width:1680px;align-items:start}
+.panel{background:var(--panel);border:1px solid var(--border);border-radius:12px;padding:14px}
+.panel-title{font-size:.7rem;text-transform:uppercase;letter-spacing:1.5px;color:var(--muted);
+  margin-bottom:12px;padding-bottom:9px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:7px}
+
+.resource-item{background:var(--panel2);border:1px solid var(--border);border-radius:8px;padding:8px 10px;
+  font-size:.7rem;font-family:'Courier New',monospace;color:var(--muted);display:flex;flex-direction:column;
+  gap:2px;margin-bottom:6px;transition:all .4s ease;opacity:.42}
+.resource-item.used{opacity:1;border-color:var(--accent);color:var(--text);background:rgba(245,158,11,.07)}
+.resource-item .name{display:flex;align-items:center;gap:6px}
+.resource-item .name i{font-size:.8rem}
+.resource-item .detail{font-size:.62rem;color:var(--accent);font-weight:bold;word-break:break-all}
+.resource-item .status{font-size:.6rem;color:var(--ok)}
+
+.canvas{display:flex;flex-direction:column;gap:14px}
+.stage-card{background:var(--panel);border:1px solid var(--border);border-radius:12px;padding:14px;
+  opacity:.3;transform:translateY(8px);transition:all .5s ease}
+.stage-card.active{opacity:1;transform:translateY(0);border-color:var(--accent);box-shadow:0 0 25px rgba(245,158,11,.12)}
+.stage-card h2{font-size:.9rem;margin-bottom:10px;display:flex;align-items:center;gap:9px}
+.stage-card h2 .tag{font-size:.56rem;padding:3px 8px;border-radius:10px;background:var(--panel2);
+  color:var(--muted);font-family:monospace;margin-left:auto}
+
+/* Modelo 3D isométrico CSS */
+.model3d{position:relative;background:linear-gradient(180deg,#0f172a,#020617);border-radius:10px;
+  border:1px solid var(--border);height:340px;overflow:hidden}
+.model3d::before{content:'MODELO 3D · ISOMÉTRICO';position:absolute;top:8px;left:10px;font-size:.58rem;
+  color:var(--muted);font-family:monospace;letter-spacing:1px;z-index:10}
+.grid-floor{position:absolute;bottom:0;left:0;right:0;height:60%;background:
+  repeating-linear-gradient(90deg,rgba(56,189,248,.08) 0 1px,transparent 1px 40px),
+  repeating-linear-gradient(0deg,rgba(56,189,248,.08) 0 1px,transparent 1px 40px);
+  transform:perspective(400px) rotateX(60deg);transform-origin:bottom center}
+
+/* Columna concreto */
+.col-conc{position:absolute;bottom:12%;width:18px;height:52%;
+  background:linear-gradient(90deg,var(--conc2),var(--conc),var(--conc2));
+  border:1px solid #57534e;border-radius:2px;opacity:0;transform:scaleY(0);transform-origin:bottom;
+  transition:all .8s ease;box-shadow:inset -3px 0 5px rgba(0,0,0,.3)}
+.col-conc.show{opacity:1;transform:scaleY(1)}
+.col-conc::after{content:'C';position:absolute;top:4px;left:50%;transform:translateX(-50%);
+  font-size:.5rem;color:#000;font-weight:bold;font-family:monospace}
+
+/* Armadura acero */
+.roof-truss{position:absolute;top:10%;left:4%;right:4%;height:14%;
+  border-top:3px solid var(--steel);border-left:3px solid var(--steel);border-right:3px solid var(--steel);
+  opacity:0;transform:translateY(-20px);transition:all .8s ease}
+.roof-truss.show{opacity:1;transform:translateY(0)}
+.roof-truss::before{content:'';position:absolute;top:0;left:0;right:0;height:100%;
+  background:repeating-linear-gradient(60deg,transparent 0 18px,var(--steel) 18px 20px,transparent 20px 38px),
+  repeating-linear-gradient(-60deg,transparent 0 18px,var(--steel) 18px 20px,transparent 20px 38px);
+  opacity:.35}
+.correa{position:absolute;top:8%;left:4%;right:4%;height:2px;background:var(--steel2);opacity:0;
+  transition:all .6s ease}
+.correa.show{opacity:1;box-shadow:0 0 6px var(--steel2)}
+
+/* Placa base detalle */
+.placa-base{position:absolute;bottom:11%;width:34px;height:6px;background:var(--steel);
+  border:1px solid #0284c7;border-radius:1px;opacity:0;transition:all .6s ease;box-shadow:0 0 8px var(--steel)}
+.placa-base.show{opacity:1}
+.placa-base::before,.placa-base::after{content:'';position:absolute;width:3px;height:6px;
+  background:var(--accent);border-radius:1px;bottom:-5px}
+.placa-base::before{left:5px}
+.placa-base::after{right:5px}
+
+/* Cimentación */
+.foundation{position:absolute;bottom:8%;left:2%;right:2%;height:5%;
+  background:linear-gradient(180deg,#44403c,#292524);border:1px solid #57534e;
+  border-radius:2px;opacity:0;transition:all .8s ease}
+.foundation.show{opacity:1}
+
+/* Carga viva (flecha) */
+.load-arrow{position:absolute;top:2%;color:var(--load);font-size:1rem;opacity:0;
+  animation:loadDrop 2s ease infinite}
+@keyframes loadDrop{0%{opacity:0;transform:translateY(-20px)}20%{opacity:1}80%{opacity:1}100%{opacity:0;transform:translateY(20px)}}
+
+/* Sismo (onda) */
+.sismo-wave{position:absolute;bottom:5%;left:0;right:0;height:3px;
+  background:linear-gradient(90deg,transparent,var(--sismo),transparent);opacity:0;
+  animation:sismoShake .3s ease infinite}
+@keyframes sismoShake{0%,100%{transform:translateX(-2px)}50%{transform:translateX(2px)}}
+.sismo-wave.show{opacity:.7}
+
+/* Diagrama esfuerzos */
+.diagram-box{display:none;background:#0d1117;border-radius:8px;padding:12px;border:1px solid var(--border);
+  margin-top:8px;font-family:'Courier New',monospace;font-size:.63rem}
+.diagram-box.show{display:block;animation:fadeIn .4s ease}
+.diag-header{color:var(--steel);margin-bottom:8px;padding-bottom:6px;
+  border-bottom:1px solid rgba(56,189,248,.3);display:flex;justify-content:space-between;font-size:.62rem}
+.diag-svg{width:100%;height:80px}
+
+/* Placa base detalle ampliado */
+.placa-detail{display:none;background:#0d1117;border-radius:8px;padding:14px;
+  border:2px solid var(--accent);margin-top:8px}
+.placa-detail.show{display:block;animation:fadeIn .5s ease}
+.pd-header{color:var(--accent);font-size:.72rem;margin-bottom:10px;padding-bottom:6px;
+  border-bottom:1px solid rgba(245,158,11,.3);display:flex;justify-content:space-between}
+.pd-svg{width:100%;height:180px}
+.verif-grid{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:10px}
+.verif-item{padding:6px 8px;background:rgba(34,197,94,.06);border-left:3px solid var(--ok);
+  border-radius:4px;font-family:'Courier New',monospace;font-size:.6rem}
+.verif-item .name{color:var(--text);font-weight:bold}
+.verif-item .calc{color:var(--muted);font-size:.56rem;margin-top:2px}
+.verif-item .result{color:var(--ok);font-weight:bold;margin-top:2px}
+.verif-item.fail{background:rgba(239,68,68,.06);border-left-color:var(--err)}
+.verif-item.fail .result{color:var(--err)}
+
+/* Pipeline fases */
+.pipeline-visual{display:flex;align-items:center;justify-content:space-between;gap:3px;padding:12px 0;flex-wrap:wrap}
+.pipe-node{flex:1;min-width:72px;text-align:center;padding:8px 4px;border-radius:8px;font-size:.58rem;
+  font-weight:600;border:2px solid var(--border);background:var(--panel2);color:var(--muted);
+  opacity:0;transform:scale(.85);transition:all .5s ease}
+.pipe-node.show{opacity:1;transform:scale(1)}
+.pipe-node.done{border-color:var(--ok);color:var(--ok);background:rgba(34,197,94,.08)}
+.pipe-node.current{border-color:var(--accent);color:var(--accent);background:rgba(245,158,11,.1);animation:pulse 1.2s infinite}
+.pipe-node .sub{display:block;font-size:.48rem;font-weight:normal;color:var(--muted);margin-top:2px;font-family:monospace}
+.pipe-arrow{color:var(--border);font-size:.7rem;opacity:0;transition:opacity .4s ease}
+.pipe-arrow.show{opacity:1;color:var(--accent)}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.5}}
+
+/* Tabla propiedades */
+.prop-table{display:none;width:100%;border-collapse:collapse;margin-top:8px;font-family:'Courier New',monospace;font-size:.62rem}
+.prop-table.show{display:table;animation:fadeIn .4s ease}
+.prop-table th{background:var(--panel2);color:var(--muted);padding:5px 7px;text-align:left;font-size:.58rem;
+  border-bottom:1px solid var(--border)}
+.prop-table td{padding:4px 7px;border-bottom:1px solid rgba(30,41,59,.5);color:#93c5fd}
+.prop-table td.num{color:var(--accent)}
+.prop-table tr:hover td{background:rgba(245,158,11,.04)}
+
+/* Código */
+.code-block{display:none;background:#0d1117;border-radius:8px;padding:10px;font-family:'Courier New',monospace;
+  font-size:.62rem;border:1px solid var(--border);margin-top:8px;max-height:240px;overflow-y:auto;line-height:1.55}
+.code-block.show{display:block;animation:fadeIn .4s ease}
+.code-block .fname{color:var(--accent);font-weight:bold;display:block;margin-bottom:6px;padding-bottom:4px;border-bottom:1px solid var(--border)}
+.cl{white-space:pre}
+.c-cm{color:#6a9955}.c-kw{color:#c586c0}.c-str{color:#ce9178}.c-fn{color:#dcdcaa}.c-var{color:#9cdcfe}.c-num{color:#b5cea8}
+
+/* Quiz */
+.quiz-box{display:none;margin-top:8px}
+.quiz-box.show{display:block;animation:fadeIn .4s ease}
+.quiz-q{font-size:.78rem;margin-bottom:9px;font-weight:600}
+.quiz-q code{color:var(--accent);background:var(--panel2);padding:1px 5px;border-radius:4px}
+.quiz-opts{display:flex;flex-direction:column;gap:6px}
+.quiz-btn{padding:8px 11px;border:2px solid var(--border);background:var(--panel2);color:var(--text);
+  border-radius:7px;cursor:pointer;font-size:.72rem;font-weight:600;text-align:left;transition:all .2s}
+.quiz-btn:hover:not(:disabled){border-color:var(--accent)}
+.quiz-btn:disabled{cursor:not-allowed}
+.quiz-btn.correct{border-color:var(--ok);background:rgba(34,197,94,.15);color:var(--ok)}
+.quiz-btn.incorrect{border-color:var(--err);background:rgba(239,68,68,.15);color:var(--err)}
+.quiz-fb{margin-top:8px;font-size:.7rem;padding:8px;border-radius:6px;display:none}
+.quiz-fb.show{display:block;animation:fadeIn .3s ease}
+.quiz-fb.ok{background:rgba(34,197,94,.12);color:#86efac;border-left:3px solid var(--ok)}
+.quiz-fb.bad{background:rgba(239,68,68,.12);color:#fca5a5;border-left:3px solid var(--err)}
+
+/* Consola */
+.console{font-family:'Courier New',monospace;font-size:.67rem;background:#000;border-radius:8px;padding:13px;
+  height:100%;min-height:500px;max-height:980px;overflow-y:auto;border:1px solid var(--border)}
+.console::-webkit-scrollbar{width:6px}
+.console::-webkit-scrollbar-thumb{background:var(--panel2);border-radius:3px}
+.log-line{margin-bottom:4px;line-height:1.45;animation:fadeIn .3s ease;word-wrap:break-word}
+.log-line.cmd{color:var(--accent);font-weight:bold}
+.log-line.info{color:var(--muted)}
+.log-line.ok{color:var(--ok)}
+.log-line.warn{color:#fbbf24}
+.log-line.err{color:var(--err)}
+.log-line.key{color:#93c5fd}
+.log-line.conc{color:var(--conc)}
+.log-line.steel{color:var(--steel)}
+.log-line.load{color:var(--load)}
+.log-line.sismo{color:var(--sismo)}
+@keyframes fadeIn{from{opacity:0;transform:translateX(-5px)}to{opacity:1;transform:translateX(0)}}
+
+/* Score */
+.score-bar{margin-top:18px;display:flex;gap:20px;align-items:center;background:var(--panel);
+  padding:11px 22px;border-radius:10px;border:1px solid var(--border);font-size:.82rem}
+.score-bar .si{display:flex;align-items:center;gap:7px}
+.score-bar .si i{color:var(--accent)}
+.score-bar .sv{color:var(--ok);font-weight:bold;font-family:monospace}
+
+@media(max-width:1250px){.workspace{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+
+<header>
+  <h1><i class="fa-solid fa-industry"></i> Nave Industrial Atlas</h1>
+  <p class="subtitle">Proyecto Estructural End-to-End · Concreto Reforzado + Acero Estructural · 60×40 m · Puente grúa 10 t · AISC 360 + ACI 318</p>
+</header>
+
+<div class="controls">
+  <button class="btn" id="bE0" onclick="phase(0)"><i class="fa-solid fa-weight-hanging"></i> E0 · Acciones</button>
+  <button class="btn" id="bE1" onclick="phase(1)" disabled><i class="fa-solid fa-cube"></i> E1 · Modelo 3D</button>
+  <button class="btn" id="bE2" onclick="phase(2)" disabled><i class="fa-solid fa-chart-simple"></i> E2 · Análisis</button>
+  <button class="btn" id="bE3" onclick="phase(3)" disabled><i class="fa-solid fa-mountain"></i> E3 · Concreto</button>
+  <button class="btn" id="bE4" onclick="phase(4)" disabled><i class="fa-solid fa-grip-lines"></i> E4 · Acero</button>
+  <button class="btn" id="bE5" onclick="phase(5)" disabled><i class="fa-solid fa-screwdriver-wrench"></i> E5 · Conexiones</button>
+  <button class="btn" id="bE6" onclick="phase(6)" disabled><i class="fa-solid fa-wave-square"></i> E6 · Sismo</button>
+  <button class="btn" id="bE7" onclick="phase(7)" disabled><i class="fa-solid fa-file-pen"></i> E7 · Documentación</button>
+  <button class="btn" id="bQuiz" onclick="runQuiz()" disabled><i class="fa-solid fa-question"></i> Quiz</button>
+  <button class="btn" id="bReset" onclick="resetAll()" style="border-color:#ef4444;color:#fca5a5"><i class="fa-solid fa-rotate-left"></i></button>
+</div>
+
+<div class="workspace">
+
+  <!-- COL 1: Recursos -->
+  <div class="panel">
+    <div class="panel-title"><i class="fa-solid fa-cubes"></i> Recursos del Proyecto</div>
+    <div id="resList">
+      <div class="resource-item" data-r="site"><div class="name"><i class="fa-solid fa-map-location-dot" style="color:var(--accent)"></i> Sitio</div><div class="detail">60 × 40 m · Zona II</div></div>
+      <div class="resource-item" data-r="cargas"><div class="name"><i class="fa-solid fa-weight-hanging" style="color:var(--load)"></i> Memoria de cargas</div><div class="detail">D, L, W, S</div><div class="status"></div></div>
+      <div class="resource-item" data-r="model"><div class="name"><i class="fa-solid fa-cube" style="color:var(--steel)"></i> Modelo estructural</div><div class="detail">SAP2000 · 3D frame</div><div class="status"></div></div>
+      <div class="resource-item" data-r="combos"><div class="name"><i class="fa-solid fa-layer-group" style="color:var(--accent)"></i> Combinaciones LRFD</div><div class="detail">1.2D+1.6L+...</div><div class="status"></div></div>
+      <div class="resource-item" data-r="conc"><div class="name"><i class="fa-solid fa-mountain" style="color:var(--conc)"></i> Concreto f'c</div><div class="detail">280 kg/cm²</div><div class="status"></div></div>
+      <div class="resource-item" data-r="steel"><div class="name"><i class="fa-solid fa-grip-lines" style="color:var(--steel)"></i> Acero A992</div><div class="detail">Fy = 3515 kg/cm²</div><div class="status"></div></div>
+      <div class="resource-item" data-r="plate"><div class="name"><i class="fa-solid fa-square" style="color:var(--accent)"></i> Placa base</div><div class="detail">760 × 760 × 25 mm</div><div class="status"></div></div>
+      <div class="resource-item" data-r="anchor"><div class="name"><i class="fa-solid fa-screwdriver" style="color:var(--accent)"></i> Pernos anclaje</div><div class="detail">6 × Ø32 mm B500</div><div class="status"></div></div>
+      <div class="resource-item" data-r="sismo"><div class="name"><i class="fa-solid fa-wave-square" style="color:var(--sismo)"></i> Espectro sísmico</div><div class="detail">NTC-Sismo · Q=2</div><div class="status"></div></div>
+      <div class="resource-item" data-r="derivas"><div class="name"><i class="fa-solid fa-arrows-left-right" style="color:var(--ok)"></i> Verif. derivas</div><div class="detail">Δ/h ≤ 0.012</div><div class="status"></div></div>
+      <div class="resource-item" data-r="planos"><div class="name"><i class="fa-solid fa-file-pen" style="color:var(--ok)"></i> Planos + Memoria</div><div class="detail">12 planos estructurales</div><div class="status"></div></div>
+    </div>
+  </div>
+
+  <!-- COL 2: Canvas -->
+  <div class="canvas">
+
+    <!-- Modelo 3D -->
+    <div class="stage-card" id="stModel">
+      <h2><i class="fa-solid fa-cube" style="color:var(--steel)"></i> Modelo Estructural 3D <span class="tag" id="modelTag">E0</span></h2>
+      <div class="model3d" id="model3d">
+        <div class="grid-floor"></div>
+        <div class="foundation" id="foundation"></div>
+        <!-- Columnas concreto -->
+        <div class="col-conc" id="col1" style="left:8%"></div>
+        <div class="col-conc" id="col2" style="left:35%"></div>
+        <div class="col-conc" id="col3" style="left:62%"></div>
+        <div class="col-conc" id="col4" style="left:88%"></div>
+        <!-- Placas base -->
+        <div class="placa-base" id="pb1" style="left:calc(8% - 8px)"></div>
+        <div class="placa-base" id="pb2" style="left:calc(35% - 8px)"></div>
+        <div class="placa-base" id="pb3" style="left:calc(62% - 8px)"></div>
+        <div class="placa-base" id="pb4" style="left:calc(88% - 8px)"></div>
+        <!-- Armadura -->
+        <div class="roof-truss" id="truss"></div>
+        <div class="correa" id="correa1" style="top:8%"></div>
+        <div class="correa" id="correa2" style="top:13%"></div>
+        <!-- Cargas -->
+        <div class="load-arrow" id="load1" style="left:20%">↓</div>
+        <div class="load-arrow" id="load2" style="left:50%">↓</div>
+        <div class="load-arrow" id="load3" style="left:80%">↓</div>
+        <!-- Sismo -->
+        <div class="sismo-wave" id="sismoWave"></div>
+      </div>
+    </div>
+
+    <!-- Diagrama de esfuerzos -->
+    <div class="stage-card" id="stDiag">
+      <h2><i class="fa-solid fa-chart-simple" style="color:var(--steel)"></i> Diagramas de Esfuerzos <span class="tag">E2</span></h2>
+      <div class="diagram-box" id="diagBox">
+        <div class="diag-header"><span><i class="fa-solid fa-chart-area"></i> Envolvente M(z) — Columna</span><span id="diagPeak">--</span></div>
+        <svg class="diag-svg" viewBox="0 0 400 80" preserveAspectRatio="none">
+          <defs>
+            <linearGradient id="gradM" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stop-color="rgba(244,63,94,.5)"/>
+              <stop offset="100%" stop-color="rgba(244,63,94,0)"/>
+            </linearGradient>
+          </defs>
+          <line x1="0" y1="40" x2="400" y2="40" stroke="#334155" stroke-width="1"/>
+          <path d="M 0,40 Q 100,40 200,10 Q 300,-10 400,40" fill="url(#gradM)" stroke="#f43f5e" stroke-width="2" opacity="0"/>
+          <text x="200" y="8" fill="#f43f5e" font-size="8" font-family="monospace" text-anchor="middle" opacity="0">Mmax = 28.4 t·m</text>
+        </svg>
+        <div class="diag-header" style="margin-top:8px"><span><i class="fa-solid fa-chart-bar"></i> Envolvente V(z) — Cortante</span><span id="diagV">--</span></div>
+        <svg class="diag-svg" viewBox="0 0 400 80" preserveAspectRatio="none">
+          <line x1="0" y1="40" x2="400" y2="40" stroke="#334155" stroke-width="1"/>
+          <path d="M 0,40 L 0,15 L 400,15 L 400,40 Z" fill="rgba(56,189,248,.3)" stroke="#38bdf8" stroke-width="2" opacity="0"/>
+          <text x="200" y="12" fill="#38bdf8" font-size="8" font-family="monospace" text-anchor="middle" opacity="0">Vmax = 8.2 t</text>
+        </svg>
+      </div>
+    </div>
+
+    <!-- Detalle placa base -->
+    <div class="stage-card" id="stPlaca">
+      <h2><i class="fa-solid fa-screwdriver-wrench" style="color:var(--accent)"></i> Conexión Crítica: Placa Base <span class="tag">E5</span></h2>
+      <div class="placa-detail" id="placaDetail">
+        <div class="pd-header">
+          <span><i class="fa-solid fa-square"></i> Placa base 760×760×25 mm · 6×Ø32 mm</span>
+          <span id="placaStatus" style="color:var(--ok)">VERIFICADA</span>
+        </div>
+        <svg class="pd-svg" viewBox="0 0 400 180">
+          <!-- Pedestal concreto -->
+          <rect x="100" y="120" width="200" height="55" fill="#44403c" stroke="#78716c" stroke-width="2"/>
+          <text x="200" y="155" fill="#a8a29e" font-size="9" font-family="monospace" text-anchor="middle">PEDESTAL CONCRETO f'c=280</text>
+          <!-- Placa -->
+          <rect x="90" y="112" width="220" height="8" fill="#38bdf8" stroke="#0284c7" stroke-width="1.5"/>
+          <text x="200" y="108" fill="#38bdf8" font-size="9" font-family="monospace" text-anchor="middle">PLACA BASE 25 mm</text>
+          <!-- Columna acero -->
+          <rect x="150" y="20" width="100" height="92" fill="rgba(56,189,248,.15)" stroke="#38bdf8" stroke-width="2"/>
+          <text x="200" y="70" fill="#38bdf8" font-size="10" font-family="monospace" text-anchor="middle">HEA 500</text>
+          <!-- Rigidizadores -->
+          <polygon points="150,112 170,112 170,92" fill="#0ea5e9" stroke="#0284c7"/>
+          <polygon points="250,112 230,112 230,92" fill="#0ea5e9" stroke="#0284c7"/>
+          <!-- Pernos -->
+          <rect x="125" y="112" width="6" height="45" fill="#f59e0b"/>
+          <rect x="269" y="112" width="6" height="45" fill="#f59e0b"/>
+          <rect x="155" y="112" width="6" height="35" fill="#f59e0b"/>
+          <rect x="239" y="112" width="6" height="35" fill="#f59e0b"/>
+          <circle cx="128" cy="110" r="5" fill="none" stroke="#f59e0b" stroke-width="2"/>
+          <circle cx="272" cy="110" r="5" fill="none" stroke="#f59e0b" stroke-width="2"/>
+          <circle cx="158" cy="110" r="5" fill="none" stroke="#f59e0b" stroke-width="2"/>
+          <circle cx="242" cy="110" r="5" fill="none" stroke="#f59e0b" stroke-width="2"/>
+          <text x="128" y="98" fill="#f59e0b" font-size="7" font-family="monospace" text-anchor="middle">Ø32</text>
+          <text x="272" y="98" fill="#f59e0b" font-size="7" font-family="monospace" text-anchor="middle">Ø32</text>
+          <!-- Fuerzas -->
+          <text x="200" y="12" fill="#f43f5e" font-size="9" font-family="monospace" text-anchor="middle">P + M</text>
+          <line x1="200" y1="15" x2="200" y2="20" stroke="#f43f5e" stroke-width="2" marker-end="url(#arrowR)"/>
+        </svg>
+        <div class="verif-grid" id="verifGrid">
+          <div class="verif-item"><div class="name">Aplastamiento concreto</div><div class="calc">φc·0.85·f'c·A1 = 128 t</div><div class="result">✓ 92 t < 128 t</div></div>
+          <div class="verif-item"><div class="name">Tracción pernos</div><div class="calc">φ·Ft·n = 84 t</div><div class="result">✓ 28 t < 84 t</div></div>
+          <div class="verif-item"><div class="name">Cortante placa</div><div class="calc">φ·Fv·A = 42 t</div><div class="result">✓ 8 t < 42 t</div></div>
+          <div class="verif-item"><div class="name">Longitud anclaje</div><div class="calc">ld = 850 mm</div><div class="result">✓ 900 mm > 850 mm</div></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Tabla perfiles -->
+    <div class="stage-card" id="stTable">
+      <h2><i class="fa-solid fa-table-list" style="color:var(--steel)"></i> Verificación de Perfiles <span class="tag">E4</span></h2>
+      <table class="prop-table" id="propTable">
+        <thead><tr><th>Elemento</th><th>Perfil</th><th>Fy</th><th>φPn / φMn</th><th>D/C</th><th>Estado</th></tr></thead>
+        <tbody id="propBody"></tbody>
+      </table>
+    </div>
+
+    <!-- Código -->
+    <div class="stage-card" id="stCode">
+      <h2><i class="fa-solid fa-code" style="color:var(--accent)"></i> Código de Diseño <span class="tag" id="codeTag">--</span></h2>
+      <div class="code-block" id="codeBlock"></div>
+    </div>
+
+    <!-- Pipeline fases -->
+    <div class="stage-card" id="stPipe">
+      <h2><i class="fa-solid fa-diagram-project" style="color:var(--accent)"></i> Pipeline del Proyecto <span class="tag">E0 → E7</span></h2>
+      <div class="pipeline-visual" id="pipeViz"></div>
+    </div>
+
+    <!-- Quiz -->
+    <div class="stage-card" id="stQuiz">
+      <h2><i class="fa-solid fa-question" style="color:var(--ok)"></i> Test de Comprensión <span class="tag">Quiz</span></h2>
+      <div class="quiz-box" id="quizBox">
+        <div class="quiz-q"><i class="fa-solid fa-circle-question" style="color:var(--accent)"></i> ¿Qué verificación es <b>obligatoria</b> en la placa base para transferir la compresión al pedestal de concreto?</div>
+        <div class="quiz-opts">
+          <button class="quiz-btn" id="qA" onclick="answerQuiz('a')">A) Solo verificar tracción en pernos</button>
+          <button class="quiz-btn" id="qB" onclick="answerQuiz('b')">B) Resistencia a aplastamiento del concreto (φc·0.85·f'c·A1)</button>
+          <button class="quiz-btn" id="qC" onclick="answerQuiz('c')">C) Verificar solo el cortante en la placa</button>
+        </div>
+        <div class="quiz-fb" id="quizFb"></div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- COL 3: Consola -->
+  <div class="panel" style="padding:0;background:transparent;border:none">
+    <div class="console" id="console">
+      <div class="log-line info">// Nave Industrial Atlas · consola estructural</div>
+      <div class="log-line info">// Presiona "E0 · Acciones" para comenzar</div>
+    </div>
+  </div>
+
+</div>
+
+<div class="score-bar">
+  <div class="si"><i class="fa-solid fa-star"></i> Score:</div>
+  <div class="si"><span class="sv" id="scoreVal">0</span> / 100</div>
+  <div class="si" style="margin-left:auto;color:var(--muted);font-size:.72rem">
+    <i class="fa-solid fa-clock"></i> Proyecto estructural · 8 fases
+  </div>
+</div>
+
+<script>
+const C=document.getElementById('console');
+const wait=ms=>new Promise(r=>setTimeout(r,ms));
+let score=0;
+
+function log(t,cls='info'){const d=document.createElement('div');d.className='log-line '+cls;d.innerHTML=t;C.appendChild(d);C.scrollTop=C.scrollHeight;}
+function clr(){C.innerHTML='<div class="log-line info">// Consola reiniciada</div>';}
+function addScore(p){score=Math.min(100,score+p);document.getElementById('scoreVal').textContent=score;}
+function mark(r,d,s){const el=document.querySelector(`.resource-item[data-r="${r}"]`);if(!el)return;el.classList.add('used');if(d)el.querySelector('.detail').textContent=d;if(s){const st=el.querySelector('.status');if(st)st.textContent=s;}}
+
+/* Pipeline */
+function buildPipe(nodes){const v=document.getElementById('pipeViz');v.innerHTML='';nodes.forEach((n,i)=>{const d=document.createElement('div');d.className=`pipe-node ${n.c||''}`;d.innerHTML=`<i class="fa-solid ${n.i}"></i> ${n.l}<span class="sub">${n.s}</span>`;v.appendChild(d);if(i<nodes.length-1){const a=document.createElement('div');a.className='pipe-arrow';a.innerHTML='<i class="fa-solid fa-arrow-right"></i>';v.appendChild(a);}});}
+async function showPipe(){for(const n of document.querySelectorAll('.pipe-node')){n.classList.add('show');await wait(200);}for(const a of document.querySelectorAll('.pipe-arrow')){a.classList.add('show');await wait(80);}}
+async function setPipeDone(idx){const nodes=document.querySelectorAll('.pipe-node');if(nodes[idx]){nodes[idx].classList.remove('current');nodes[idx].classList.add('done');}}
+
+/* Fases */
+async function phase(n){
+  const btn=document.getElementById('bE'+n);
+  btn.disabled=true;
+  if(n>0)clr();
+  document.getElementById('stModel').classList.add('active');
+
+  if(n===0){
+    document.getElementById('modelTag').textContent='E0';
+    log('// E0 · Definición de acciones','info');
+    log('$ python load_calculator.py --site "Zona II" --type industrial','cmd');
+    await wait(700);
+    log('CARGAS MUERTAS (D):','conc');
+    log('  · Peso propio concreto RC: 2.40 t/m³','key');
+    log('  · Peso propio acero: 7.85 t/m³','key');
+    log('  · Cubierta (lámina + aislante): 0.035 t/m²','key');
+    log('  · Instalaciones (HVAC, eléctrico): 0.020 t/m²','key');
+    log('  → Total D = 0.055 t/m² (cubierta)','ok');
+    await wait(500);
+    log('','info');
+    log('CARGAS VIVAS (L):','load');
+    log('  · Lr cubierta (mantenimiento): 0.100 t/m²','key');
+    log('  · Puente grúa 10 t: impacto 25% = 12.5 t','key');
+    log('  · Carga viva piso: 0.500 t/m²','key');
+    await wait(500);
+    log('','info');
+    log('VIENTO (W):','load');
+    log('  · Velocidad básica: 120 km/h','key');
+    log('  · Presión dinámica: 0.048 t/m²','key');
+    log('  · Cp (barlovento) = +0.8, Cp (sotavento) = -0.5','key');
+    await wait(500);
+    log('','info');
+    log('SISMO (S):','sismo');
+    log('  · Zona II · Q = 2 · Espectro NTC-Sismo','key');
+    log('  · Coef. sísmico c = 0.16','key');
+    await wait(600);
+    // Mostrar flechas de carga
+    for(const id of ['load1','load2','load3']){document.getElementById(id).style.animationDelay=(Math.random()*2)+'s';}
+    log('','info');
+    log('✓ Memoria de cargas generada','ok');
+    mark('site','60 × 40 m · Zona II','✓');
+    mark('cargas','D, L, W, S','✓ calculadas');
+    addScore(10);
+    btn.classList.add('done');
+    document.getElementById('bE1').disabled=false;
+    document.getElementById('bE1').classList.add('active');
+  }
+
+  if(n===1){
+    document.getElementById('modelTag').textContent='E1';
+    document.getElementById('stPipe').classList.add('active');
+    log('// E1 · Modelado estructural 3D','info');
+    buildPipe([
+      {i:'fa-weight-hanging',l:'Acciones',s:'D,L,W,S'},
+      {i:'fa-cube',l:'Modelo 3D',s:'SAP2000',c:'current'},
+      {i:'fa-layer-group',l:'Combos',s:'LRFD'},
+      {i:'fa-mountain',l:'Concreto',s:'ACI 318'},
+      {i:'fa-grip-lines',l:'Acero',s:'AISC 360'},
+      {i:'fa-screwdriver-wrench',l:'Conexión',s:'Placa base'},
+      {i:'fa-wave-square',l:'Sismo',s:'Derivas'},
+      {i:'fa-file-pen',l:'Planos',s:'Memoria'}
+    ]);
+    await showPipe();
+    log('$ SAP2000 open "atlas_model.sdb"','cmd');
+    await wait(700);
+    log('Definiendo materiales:','key');
+    log('  · Concreto f\'c = 280 kg/cm² · E = 250,998 kg/cm²','conc');
+    log('  · Acero A992 Fy = 3515 kg/cm² · E = 2,039,000 kg/cm²','steel');
+    await wait(600);
+    // Construir modelo
+    log('','info');
+    log('Creando columnas de concreto 40×60 cm...','conc');
+    for(const id of ['col1','col2','col3','col4']){document.getElementById(id).classList.add('show');await wait(250);}
+    mark('model','SAP2000 · 3D frame','✓ modelado');
+    await wait(400);
+    log('','info');
+    log('Creando armadura de cubierta (HEA 500)...','steel');
+    document.getElementById('truss').classList.add('show');
+    await wait(400);
+    document.getElementById('correa1').classList.add('show');
+    document.getElementById('correa2').classList.add('show');
+    await wait(500);
+    log('','info');
+    log('Definiendo apoyos: empotramiento en base de columnas','key');
+    document.getElementById('foundation').classList.add('show');
+    await wait(500);
+    log('','info');
+    log('✓ Modelo 3D completo: 4 columnas + 2 armaduras + 6 correas','ok');
+    log('  Nodos: 248 · Elementos: 412 · Grados de libertad: 1,488','key');
+    addScore(10);
+    btn.classList.add('done');
+    document.getElementById('bE2').disabled=false;
+    document.getElementById('bE2').classList.add('active');
+  }
+
+  if(n===2){
+    document.getElementById('modelTag').textContent='E2';
+    document.getElementById('stDiag').classList.add('active');
+    log('// E2 · Análisis y combinaciones LRFD','info');
+    log('$ SAP2000 run --load-cases D,L,W,S','cmd');
+    await wait(700);
+    log('Combinaciones LRFD (AISC 360 / ACI 318):','key');
+    log('  C1: 1.4D','key');
+    log('  C2: 1.2D + 1.6L + 0.5(Lr)','key');
+    log('  C3: 1.2D + 1.6Lr + 1.0W','key');
+    log('  C4: 1.2D + 1.0W + 1.0L + 0.5Lr','key');
+    log('  C5: 1.2D + 1.0E + 1.0L','key');
+    log('  C6: 0.9D + 1.0W','key');
+    log('  C7: 0.9D + 1.0E','key');
+    await wait(800);
+    log('','info');
+    log('Envolventes obtenidas:','ok');
+    await wait(500);
+    // Diagramas
+    document.getElementById('diagBox').classList.add('show');
+    const paths=document.querySelectorAll('.diag-svg path');
+    const texts=document.querySelectorAll('.diag-svg text');
+    paths.forEach(p=>{p.style.transition='opacity .8s';p.style.opacity='1';});
+    texts.forEach(t=>{t.style.transition='opacity .8s';t.style.opacity='1';});
+    log('  Columna: Pmax = 92.3 t (compresión)','conc');
+    log('  Columna: Mmax = 28.4 t·m (sismo)','sismo');
+    log('  Columna: Vmax = 8.2 t','key');
+    log('  Armadura: Mmax = 15.6 t·m (centro del claro)','steel');
+    document.getElementById('diagPeak').textContent='Mmax=28.4 t·m';
+    document.getElementById('diagV').textContent='Vmax=8.2 t';
+    await wait(500);
+    log('','info');
+    log('✓ Envolventes listas para diseño','ok');
+    mark('combos','1.2D+1.6L+...','✓ 7 combos');
+    addScore(10);
+    btn.classList.add('done');
+    document.getElementById('bE3').disabled=false;
+    document.getElementById('bE3').classList.add('active');
+  }
+
+  if(n===3){
+    document.getElementById('modelTag').textContent='E3';
+    log('// E3 · Diseño de concreto (ACI 318)','info');
+    log('$ python design_concrete.py --f\'c 280 --column 40x60','cmd');
+    await wait(700);
+    log('','info');
+    log('COLUMNA 40×60 cm (Pmax=92.3 t, Mmax=28.4 t·m):','conc');
+    log('  Refuerzo longitudinal: 8 Ø 1" (As = 40.5 cm²)','key');
+    log('  ρ = 1.69% (1% ≤ ρ ≤ 8%) ✓','ok');
+    log('  Estribos: Ø 3/8" @ 15 cm (zona crítica)','key');
+    log('  Estribos: Ø 3/8" @ 25 cm (zona central)','key');
+    await wait(700);
+    log('','info');
+    log('ZAPATA AISLADA (por columna):','conc');
+    log('  Dimensiones: 2.5 × 2.5 × 0.50 m','key');
+    log('  Presión de contacto: 14.8 t/m² < 18 t/m² ✓','ok');
+    log('  Refuerzo inferior: #6 @ 15 cm ambos sentidos','key');
+    await wait(600);
+    log('','info');
+    log('PEDESTAL (interfaz con placa base):','conc');
+    log('  Dimensiones: 1.0 × 1.0 × 1.2 m','key');
+    log('  Refuerzo: 12 Ø 3/4" + estribos Ø 3/8" @ 10 cm','key');
+    log('  Refuerzo adicional zona anclaje (skin reinforcement)','key');
+    await wait(600);
+    log('','info');
+    log('✓ Diseño de concreto completo','ok');
+    mark('conc','280 kg/cm² · 8Ø1"','✓ diseñado');
+    addScore(12);
+    btn.classList.add('done');
+    document.getElementById('bE4').disabled=false;
+    document.getElementById('bE4').classList.add('active');
+  }
+
+  if(n===4){
+    document.getElementById('modelTag').textContent='E4';
+    document.getElementById('stTable').classList.add('active');
+    log('// E4 · Diseño de acero (AISC 360 LRFD)','info');
+    log('$ python design_steel.py --Fy 3515 --members all','cmd');
+    await wait(700);
+    log('','info');
+    log('Verificando perfiles:','steel');
+    await wait(400);
+    const tbody=document.getElementById('propBody');
+    const members=[
+      {e:'Cordón superior',p:'HEA 500',fy:'3515',cap:'φPn=185 t',dc:'0.72',st:'✓'},
+      {e:'Cordón inferior',p:'HEA 500',fy:'3515',cap:'φPn=185 t',dc:'0.68',st:'✓'},
+      {e:'Diagonales',p:'HEA 200',fy:'3515',cap:'φPn=62 t',dc:'0.81',st:'✓'},
+      {e:'Montantes',p:'HEA 160',fy:'3515',cap:'φPn=41 t',dc:'0.65',st:'✓'},
+      {e:'Correas',p:'IPE 200',fy:'3515',cap:'φMn=8.2 t·m',dc:'0.74',st:'✓'},
+      {e:'Viga carril',p:'IPE 400',fy:'3515',cap:'φMn=28 t·m',dc:'0.88',st:'✓'}
+    ];
+    document.getElementById('propTable').classList.add('show');
+    for(const m of members){
+      const tr=document.createElement('tr');
+      tr.innerHTML=`<td>${m.e}</td><td>${m.p}</td><td class="num">${m.fy}</td><td class="num">${m.cap}</td><td class="num">${m.dc}</td><td style="color:var(--ok)">${m.st}</td>`;
+      tbody.appendChild(tr);
+      log(`  ${m.e.padEnd(18)} ${m.p.padEnd(10)} D/C=${m.dc} ${m.st}`,'steel');
+      await wait(350);
+    }
+    await wait(500);
+    log('','info');
+    log('Verificación de flechas:','key');
+    log('  Armadura: δ = L/320 < L/250 ✓','ok');
+    log('  Correas: δ = L/280 < L/200 ✓','ok');
+    await wait(500);
+    log('','info');
+    log('Pandeo lateral-torsional: Lb = 2.0 m < Lp = 2.3 m ✓','ok');
+    log('✓ Diseño de acero completo','ok');
+    mark('steel','Fy = 3515 kg/cm²','✓ verificado');
+    addScore(12);
+    btn.classList.add('done');
+    document.getElementById('bE5').disabled=false;
+    document.getElementById('bE5').classList.add('active');
+  }
+
+  if(n===5){
+    document.getElementById('modelTag').textContent='E5';
+    document.getElementById('stPlaca').classList.add('active');
+    document.getElementById('stCode').classList.add('active');
+    document.getElementById('codeTag').textContent='E5 · placa_base.py';
+    log('// E5 · CONEXIÓN CRÍTICA: Placa base acero-concreto','info');
+    log('// Transferencia: Compresión + Tracción + Cortante','warn');
+    await wait(600);
+
+    // Placa base
+    for(const id of ['pb1','pb2','pb3','pb4']){document.getElementById(id).classList.add('show');await wait(200);}
+    await wait(400);
+
+    log('$ python plate_design.py --col HEA500 --P 92.3 --M 28.4','cmd');
+    await wait(700);
+    log('','info');
+    log('1) DIMENSIONAMIENTO INICIAL','key');
+    log('  Columna HEA 500: bf=300mm, d=490mm','steel');
+    log('  Placa propuesta: 760×760×25 mm (A36 Fy=2530)','key');
+    log('  Pernos: 6 Ø32 mm B500 (Fy=4200)','key');
+    await wait(600);
+    log('','info');
+    log('2) VERIFICACIÓN AL APLASTAMIENTO DEL CONCRETO','conc');
+    log('  A1 = 760×760 = 577,600 mm²','key');
+    log('  A2/A1 = √(1000×1000/577600) = 1.32 ≤ 2.0','key');
+    log('  φc·0.85·f\'c·A1·√(A2/A1) = 0.65·0.85·28·577600·1.32','conc');
+    log('  = 12,800,000 N = 128 t','ok');
+    log('  P_compresión = 92 t < 128 t ✓','ok');
+    await wait(600);
+    log('','info');
+    log('3) VERIFICACIÓN DE TRACCIÓN EN PERNOS','key');
+    log('  M = 28.4 t·m genera tracción en 3 pernos (lado opuesto)','key');
+    log('  T_por_perno = (M/2) / (0.7·d) = 28.4/2 / 0.7·0.76 ≈ 2.67 t','key');
+    log('  φ·Ft·A_perno = 0.75·4200·804 = 2.53M N = 253 t','ok');
+    log('  Σφ·Ft (3 pernos) = 84 t > 28 t ✓','ok');
+    await wait(600);
+    log('','info');
+    log('4) VERIFICACIÓN DE CORTANTE','key');
+    log('  Cortante sísmico V = 8.2 t','sismo');
+    log('  φ·Fv·A_placa = 0.75·0.4·2530·(760·25) = 14.4 t','ok');
+    log('  Resistencia por fricción: 0.3·92 = 27.6 t','key');
+    log('  8.2 t < 14.4 t ✓','ok');
+    await wait(600);
+    log('','info');
+    log('5) LONGITUD DE ANCLAJE','key');
+    log('  ld = 850 mm (embebido en pedestal 1.2 m) ✓','ok');
+    log('  Refuerzo de piel en zona de anclaje: ✓','ok');
+    await wait(500);
+    log('','info');
+    log('✓ CONEXIÓN VERIFICADA','ok');
+    log('  Placa: 760×760×25 mm · 6 Ø32 mm','key');
+    log('  Rigidizadores: 4 × 9 mm','key');
+    await wait(500);
+
+    // Mostrar detalle y verificaciones
+    document.getElementById('placaDetail').classList.add('show');
+    const verifs=document.getElementById('verifGrid');
+    verifs.style.display='grid';
+    await wait(400);
+    log('','info');
+    log('// AMENAZA: subestimar tracción en pernos bajo sismo','warn');
+    log('// MITIGACIÓN: envolvente sísmica con reversión de M','ok');
+    mark('plate','760 × 760 × 25 mm','✓ verificada');
+    mark('anchor','6 × Ø32 mm B500','✓ verificados');
+    addScore(14);
+    btn.classList.add('done');
+    document.getElementById('bE6').disabled=false;
+    document.getElementById('bE6').classList.add('active');
+  }
+
+  if(n===6){
+    document.getElementById('modelTag').textContent='E6';
+    log('// E6 · Verificación sismorresistente','info');
+    log('$ SAP2000 run --load-case E --drift-check','cmd');
+    await wait(700);
+    // Sismo visual
+    const sw=document.getElementById('sismoWave');
+    sw.style.bottom='5%';sw.classList.add('show');
+    await wait(500);
+    log('','info');
+    log('Aplicando espectro NTC-Sismo (Zona II):','sismo');
+    log('  Q = 2 · Factor de reducción','key');
+    log('  c = 0.16 · Coef. sísmico','key');
+    log('','sismo');
+    await wait(600);
+    log('Espectro de diseño:','key');
+    log('  a0 = 0.08 · c = 0.16 · Tb = 0.6s · r = 0.5','sismo');
+    await wait(500);
+    log('','info');
+    log('Derivas de entrepiso:','key');
+    log('  Δx/h en dirección X: 0.0082 < 0.012 ✓','ok');
+    log('  Δx/h en dirección Y: 0.0094 < 0.012 ✓','ok');
+    await wait(600);
+    log('','info');
+    log('Ductilidad de la conexión:','sismo');
+    log('  Reversión de momento: M+ = 28.4 / M- = 26.1 t·m','key');
+    log('  Placa base semirrígida modelada: ✓','ok');
+    log('  Pernos verificados para reversión: ✓','ok');
+    await wait(600);
+    log('','info');
+    log('✓ Estructura sismorresistente verificada','ok');
+    mark('sismo','NTC-Sismo · Q=2','✓ aplicado');
+    mark('derivas','Δ/h ≤ 0.012','✓ 0.0082');
+    sw.classList.remove('show');
+    addScore(12);
+    btn.classList.add('done');
+    document.getElementById('bE7').disabled=false;
+    document.getElementById('bE7').classList.add('active');
+  }
+
+  if(n===7){
+    document.getElementById('modelTag').textContent='E7';
+    document.getElementById('stCode').classList.add('active');
+    document.getElementById('codeTag').textContent='E7 · documentación';
+    log('// E7 · Documentación técnica','info');
+    log('$ python generate_drawings.py --output planos/','cmd');
+    await wait(700);
+    log('Generando planos estructurales:','key');
+    await wait(400);
+    const planos=[
+      'P-01 · Planta de cimentación',
+      'P-02 · Detalle de zapatas aisladas',
+      'P-03 · Planta de columnas',
+      'P-04 · Detalle de pedestales',
+      'P-05 · Elevación de armaduras',
+      'P-06 · Detalle de correas y largueros',
+      'P-07 · Conexión placa base (E5)',
+      'P-08 · Detalle de anclajes',
+      'P-09 · Planta de cubierta',
+      'P-10 · Detalle de viga carril',
+      'P-11 · Cuadro de materiales',
+      'P-12 · Especificaciones técnicas'
+    ];
+    for(const p of planos){log(`  ${p}`,'ok');await wait(180);}
+    await wait(500);
+    log('','info');
+    log('Memoria de cálculo generada:','ok');
+    log('  · Memoria descriptiva','key');
+    log('  · Análisis de cargas','key');
+    log('  · Secuencia de cálculo (concreto + acero)','key');
+    log('  · Verificación de conexiones','key');
+    log('  · Planos de detalle','key');
+    await wait(600);
+    log('','info');
+    log('✓ Documentación completa: 12 planos + memoria','ok');
+    mark('planos','12 planos estructurales','✓ generados');
+    addScore(20);
+    btn.classList.add('done');
+    document.getElementById('bQuiz').disabled=false;
+    document.getElementById('bQuiz').classList.add('active');
+    document.getElementById('stPipe').classList.add('active');
+    await setPipeDone(7);
+
+    log('','info');
+    log('=== PROYECTO ESTRUCTURAL COMPLETADO ===','ok');
+    log('Nave Industrial Atlas · 60×40 m · Concreto + Acero','key');
+    log('Conexión crítica verificada: Placa base 760×760×25 mm','ok');
+  }
+}
+
+/* Quiz */
+function runQuiz(){
+  document.getElementById('stQuiz').classList.add('active');
+  document.getElementById('quizBox').classList.add('show');
+  document.getElementById('bQuiz').disabled=true;
+  log('','info');
+  log('// Quiz final de ingeniería estructural','info');
+}
+function answerQuiz(a){
+  const A=document.getElementById('qA'),B=document.getElementById('qB'),Cb=document.getElementById('qC');
+  A.disabled=B.disabled=Cb.disabled=true;
+  const fb=document.getElementById('quizFb');
+  if(a==='b'){
+    B.classList.add('correct');
+    fb.className='quiz-fb show ok';
+    fb.innerHTML='<b>¡Correcto!</b> La placa base transmite la compresión al concreto a través del <b>área de contacto</b>. La verificación es <code>φc·0.85·f\'c·A1·√(A2/A1)</code> según ACI 318. Si esta verificación falla, el concreto se aplasta antes de que el acero alcance su capacidad.';
+    log('✓ Quiz correcto: aplastamiento del concreto','ok');
+    addScore(10);
+  }else{
+    if(a==='a')A.classList.add('incorrect');
+    else Cb.classList.add('incorrect');
+    B.classList.add('correct');
+    fb.className='quiz-fb show bad';
+    fb.innerHTML='<b>Incorrecto.</b> La respuesta correcta es <b>B</b>. La verificación de aplastamiento del concreto es la más crítica porque la placa base debe transferir la compresión de la columna al pedestal sin que el concreto falle por compresión local.';
+    log('✗ Quiz incorrecto · respuesta correcta: B','warn');
+  }
+  setTimeout(()=>{
+    log('','info');
+    log('=== PROYECTO COMPLETADO ===','ok');
+    log('Score final: '+score+' / 100','ok');
+    log('Nave Atlas · Estructura mixta concreto-acero','key');
+    document.getElementById('bQuiz').classList.add('done');
+  },900);
+}
+
+function resetAll(){
+  score=0;
+  document.getElementById('scoreVal').textContent='0';
+  document.querySelectorAll('.resource-item').forEach(el=>{el.classList.remove('used');const st=el.querySelector('.status');if(st)st.textContent='';});
+  document.querySelectorAll('.stage-card').forEach(el=>el.classList.remove('active'));
+  document.querySelectorAll('.pipe-node,.pipe-arrow').forEach(el=>el.classList.remove('show','done','current'));
+  document.querySelectorAll('.col-conc,.placa-base,.roof-truss,.correa,.foundation,.sismo-wave').forEach(el=>el.classList.remove('show'));
+  document.querySelectorAll('.diag-svg path,.diag-svg text').forEach(el=>el.style.opacity='0');
+  document.getElementById('diagBox').classList.remove('show');
+  document.getElementById('placaDetail').classList.remove('show');
+  document.getElementById('verifGrid').style.display='none';
+  document.getElementById('propTable').classList.remove('show');
+  document.getElementById('propBody').innerHTML='';
+  document.getElementById('codeBlock').classList.remove('show');
+  document.getElementById('codeBlock').innerHTML='';
+  document.getElementById('quizBox').classList.remove('show');
+  document.getElementById('quizFb').className='quiz-fb';document.getElementById('quizFb').innerHTML='';
+  ['qA','qB','qC'].forEach(id=>{const b=document.getElementById(id);b.disabled=false;b.className='quiz-btn';});
+  ['bE0','bE1','bE2','bE3','bE4','bE5','bE6','bE7','bQuiz'].forEach((id,i)=>{
+    const b=document.getElementById(id);b.disabled=(i!==0);b.classList.remove('active','done');
+  });
+  document.getElementById('bE0').disabled=false;
+  document.getElementById('diagPeak').textContent='--';
+  document.getElementById('diagV').textContent='--';
+  document.getElementById('modelTag').textContent='E0';
+  document.getElementById('placaStatus').textContent='VERIFICADA';
+  clr();
+}
+</script>
+</body>
+</html>

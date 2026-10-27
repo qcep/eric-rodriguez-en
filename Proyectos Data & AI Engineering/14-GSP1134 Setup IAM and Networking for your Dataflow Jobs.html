@@ -1,0 +1,952 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Lab: Setup IAM & Networking para Dataflow</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        :root {
+            --bg: #0b1120;
+            --panel: #1e293b;
+            --panel-2: #334155;
+            --text: #f1f5f9;
+            --muted: #94a3b8;
+            --accent: #4285f4;
+            --gcp-yellow: #fbbc04;
+            --gcp-green: #34a853;
+            --gcp-red: #ea4335;
+            --beam: #ff6d00;
+            --iam: #a855f7;
+            --net: #22c55e;
+            --border: #334155;
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+
+        body {
+            font-family: 'Segoe UI', Roboto, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            min-height: 100vh;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        header { text-align: center; margin-bottom: 20px; max-width: 920px; }
+        h1 { font-size: 1.4rem; font-weight: 300; letter-spacing: 1px; margin-bottom: 8px; }
+        h1 i { color: var(--beam); }
+        p.subtitle { color: var(--muted); font-size: 0.88rem; }
+        p.subtitle code { color: var(--gcp-yellow); background: var(--panel); padding: 2px 6px; border-radius: 4px; }
+
+        .controls {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+
+        .btn {
+            padding: 11px 16px;
+            border: 2px solid var(--border);
+            background: var(--panel);
+            color: var(--text);
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 0.8rem;
+            font-weight: 600;
+            transition: all 0.25s;
+            display: flex;
+            align-items: center;
+            gap: 7px;
+        }
+
+        .btn:hover:not(:disabled) { transform: translateY(-2px); border-color: var(--beam); }
+        .btn:disabled { opacity: 0.35; cursor: not-allowed; }
+        .btn.active { border-color: var(--beam); background: rgba(255,109,0,0.15); box-shadow: 0 0 15px rgba(255,109,0,0.2); }
+        .btn.done { border-color: var(--gcp-green); background: rgba(52,168,83,0.12); color: var(--gcp-green); }
+
+        .btn i { font-size: 0.92rem; }
+
+        .workspace {
+            display: grid;
+            grid-template-columns: 290px 1fr 380px;
+            gap: 18px;
+            width: 100%;
+            max-width: 1620px;
+            align-items: start;
+        }
+
+        .panel {
+            background: var(--panel);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 16px;
+        }
+
+        .panel-title {
+            font-size: 0.72rem;
+            text-transform: uppercase;
+            letter-spacing: 1.5px;
+            color: var(--muted);
+            margin-bottom: 14px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .resource-item {
+            background: var(--panel-2);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 9px 11px;
+            font-size: 0.73rem;
+            font-family: 'Courier New', monospace;
+            color: var(--muted);
+            display: flex;
+            flex-direction: column;
+            gap: 3px;
+            margin-bottom: 7px;
+            transition: all 0.4s ease;
+            opacity: 0.45;
+        }
+
+        .resource-item.used {
+            opacity: 1;
+            border-color: var(--beam);
+            color: var(--text);
+            background: rgba(255,109,0,0.08);
+        }
+
+        .resource-item .name { display: flex; align-items: center; gap: 6px; }
+        .resource-item .name i { font-size: 0.82rem; }
+        .resource-item .detail { font-size: 0.64rem; color: var(--beam); font-weight: bold; word-break: break-all; }
+        .resource-item .status { font-size: 0.62rem; color: var(--gcp-green); }
+        .resource-item .status.bad { color: var(--gcp-red); }
+
+        .canvas {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+
+        .stage-card {
+            background: var(--panel);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 16px;
+            opacity: 0.3;
+            transform: translateY(8px);
+            transition: all 0.5s ease;
+        }
+
+        .stage-card.active {
+            opacity: 1;
+            transform: translateY(0);
+            border-color: var(--beam);
+            box-shadow: 0 0 25px rgba(255,109,0,0.12);
+        }
+
+        .stage-card h2 {
+            font-size: 0.92rem;
+            margin-bottom: 12px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .stage-card h2 .tag {
+            font-size: 0.58rem;
+            padding: 3px 8px;
+            border-radius: 10px;
+            background: var(--panel-2);
+            color: var(--muted);
+            font-family: monospace;
+            margin-left: auto;
+        }
+
+        /* IAM panel */
+        .iam-panel {
+            display: none;
+            background: #0d1117;
+            border-radius: 8px;
+            padding: 12px;
+            border: 1px solid var(--iam);
+            margin-top: 8px;
+            font-family: 'Courier New', monospace;
+            font-size: 0.66rem;
+        }
+        .iam-panel.show { display: block; animation: fadeIn 0.4s ease; }
+        .iam-header {
+            color: var(--iam);
+            font-size: 0.66rem;
+            margin-bottom: 8px;
+            padding-bottom: 6px;
+            border-bottom: 1px solid rgba(168,85,247,0.3);
+            display: flex;
+            justify-content: space-between;
+        }
+        .role-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 5px 8px;
+            margin-bottom: 4px;
+            background: rgba(168,85,247,0.06);
+            border-left: 3px solid var(--iam);
+            border-radius: 4px;
+            opacity: 0;
+            animation: fadeIn 0.3s ease forwards;
+        }
+        .role-item .role-name { color: var(--gcp-yellow); font-weight: bold; }
+        .role-item .role-badge {
+            margin-left: auto;
+            font-size: 0.58rem;
+            padding: 2px 7px;
+            border-radius: 8px;
+            background: rgba(52,168,83,0.15);
+            color: var(--gcp-green);
+            font-weight: bold;
+        }
+        .role-item.missing { border-left-color: var(--gcp-red); background: rgba(234,67,53,0.06); }
+        .role-item.missing .role-name { color: var(--gcp-red); }
+        .role-item.missing .role-badge { background: rgba(234,67,53,0.15); color: var(--gcp-red); }
+
+        /* Job attempts */
+        .job-attempt {
+            display: none;
+            background: #0d1117;
+            border-radius: 8px;
+            padding: 12px;
+            border: 1px solid var(--border);
+            margin-top: 8px;
+            font-family: 'Courier New', monospace;
+            font-size: 0.66rem;
+        }
+        .job-attempt.show { display: block; animation: fadeIn 0.4s ease; }
+        .job-header {
+            font-size: 0.66rem;
+            margin-bottom: 8px;
+            padding-bottom: 6px;
+            border-bottom: 1px solid rgba(51,65,85,0.3);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .job-header .job-name { color: var(--text); font-weight: bold; }
+        .job-header .job-status {
+            padding: 2px 8px;
+            border-radius: 8px;
+            font-size: 0.58rem;
+            font-weight: bold;
+        }
+        .job-header .job-status.failed { background: rgba(234,67,53,0.15); color: var(--gcp-red); }
+        .job-header .job-status.running { background: rgba(66,133,244,0.15); color: var(--accent); animation: pulse 1.5s infinite; }
+        .job-header .job-status.succeeded { background: rgba(52,168,83,0.15); color: var(--gcp-green); }
+        .job-detail {
+            color: var(--muted);
+            font-size: 0.62rem;
+            padding: 3px 0;
+        }
+        .job-detail .k { color: var(--accent); }
+        .job-error {
+            margin-top: 6px;
+            padding: 6px 8px;
+            border-radius: 4px;
+            background: rgba(234,67,53,0.1);
+            border-left: 3px solid var(--gcp-red);
+            color: #fca5a5;
+            font-size: 0.62rem;
+        }
+        .job-success {
+            margin-top: 6px;
+            padding: 6px 8px;
+            border-radius: 4px;
+            background: rgba(52,168,83,0.1);
+            border-left: 3px solid var(--gcp-green);
+            color: #86efac;
+            font-size: 0.62rem;
+        }
+
+        /* Network panel */
+        .network-panel {
+            display: none;
+            background: #0d1117;
+            border-radius: 8px;
+            padding: 12px;
+            border: 1px solid var(--net);
+            margin-top: 8px;
+            font-family: 'Courier New', monospace;
+            font-size: 0.66rem;
+        }
+        .network-panel.show { display: block; animation: fadeIn 0.4s ease; }
+        .net-header {
+            color: var(--net);
+            font-size: 0.66rem;
+            margin-bottom: 8px;
+            padding-bottom: 6px;
+            border-bottom: 1px solid rgba(34,197,94,0.3);
+            display: flex;
+            justify-content: space-between;
+        }
+        .net-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 4px 0;
+            border-bottom: 1px solid rgba(51,65,85,0.3);
+        }
+        .net-row:last-child { border-bottom: none; }
+        .net-row .k { color: var(--muted); }
+        .net-row .v { color: var(--gcp-yellow); font-weight: bold; }
+        .net-row .v.on { color: var(--gcp-green); }
+        .net-row .v.off { color: var(--gcp-red); }
+
+        /* VMs */
+        .vm-visual {
+            display: none;
+            background: #0d1117;
+            border-radius: 8px;
+            padding: 12px;
+            border: 1px solid var(--accent);
+            margin-top: 8px;
+            font-family: 'Courier New', monospace;
+            font-size: 0.64rem;
+        }
+        .vm-visual.show { display: block; animation: fadeIn 0.4s ease; }
+        .vm-header {
+            color: var(--accent);
+            font-size: 0.64rem;
+            margin-bottom: 8px;
+            padding-bottom: 6px;
+            border-bottom: 1px solid rgba(66,133,244,0.3);
+            display: flex;
+            justify-content: space-between;
+        }
+        .vm-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 5px 8px;
+            margin-bottom: 4px;
+            background: rgba(66,133,244,0.05);
+            border-left: 3px solid var(--accent);
+            border-radius: 4px;
+            opacity: 0;
+            animation: fadeIn 0.3s ease forwards;
+        }
+        .vm-item .vm-name { color: var(--text); font-weight: bold; }
+        .vm-item .vm-ip { margin-left: auto; font-size: 0.6rem; }
+        .vm-item .vm-ip.public { color: var(--gcp-red); }
+        .vm-item .vm-ip.private { color: var(--gcp-green); }
+
+        /* Cleanup */
+        .cleanup-box {
+            display: none;
+            background: #1a0a0a;
+            border-radius: 8px;
+            padding: 12px;
+            border: 1px solid var(--gcp-red);
+            margin-top: 8px;
+            font-family: 'Courier New', monospace;
+            font-size: 0.66rem;
+        }
+        .cleanup-box.show { display: block; animation: fadeIn 0.4s ease; }
+        .cleanup-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 4px 0;
+            opacity: 0;
+            animation: fadeIn 0.3s ease forwards;
+        }
+        .cleanup-item i { color: var(--gcp-red); }
+        .cleanup-item .done { color: var(--gcp-green); margin-left: auto; font-size: 0.6rem; }
+
+        .console {
+            font-family: 'Courier New', monospace;
+            font-size: 0.69rem;
+            background: #000;
+            border-radius: 8px;
+            padding: 14px;
+            height: 100%;
+            min-height: 500px;
+            max-height: 920px;
+            overflow-y: auto;
+            border: 1px solid var(--border);
+        }
+
+        .log-line { margin-bottom: 5px; line-height: 1.45; animation: fadeIn 0.3s ease; word-wrap: break-word; }
+        .log-line.cmd { color: var(--gcp-green); font-weight: bold; }
+        .log-line.info { color: var(--muted); }
+        .log-line.success { color: var(--gcp-green); }
+        .log-line.warn { color: var(--gcp-yellow); }
+        .log-line.error { color: var(--gcp-red); }
+        .log-line.key { color: #93c5fd; }
+        .log-line.beam { color: var(--beam); }
+        .log-line.iam { color: #c4b5fd; }
+        .log-line.net { color: #86efac; }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateX(-5px); }
+            to { opacity: 1; transform: translateX(0); }
+        }
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        @media (max-width: 1250px) {
+            .workspace { grid-template-columns: 1fr; }
+        }
+
+        .score-bar {
+            margin-top: 20px;
+            display: flex;
+            gap: 20px;
+            align-items: center;
+            background: var(--panel);
+            padding: 12px 24px;
+            border-radius: 10px;
+            border: 1px solid var(--border);
+            font-size: 0.85rem;
+        }
+        .score-bar .score-item { display: flex; align-items: center; gap: 8px; }
+        .score-bar .score-item i { color: var(--gcp-yellow); }
+        .score-bar .score-val { color: var(--gcp-green); font-weight: bold; font-family: monospace; }
+    </style>
+</head>
+<body>
+
+    <header>
+        <h1><i class="fa-solid fa-lock"></i> Setup IAM and Networking for your Dataflow Jobs</h1>
+        <p class="subtitle">Lab GSP1134 · IAM roles · Private IPs · Private Google Access · Región: <code>us-central1</code></p>
+    </header>
+
+    <div class="controls">
+        <button class="btn" id="btnTask1" onclick="runTask1()"><i class="fa-solid fa-bucket"></i> T1 · Bucket</button>
+        <button class="btn" id="btnTask2" onclick="runTask2()" disabled><i class="fa-solid fa-user-shield"></i> T2 · IAM Job</button>
+        <button class="btn" id="btnTask3" onclick="runTask3()" disabled><i class="fa-solid fa-network-wired"></i> T3 · Private IPs</button>
+        <button class="btn" id="btnReset" onclick="resetAll()" style="border-color:#ef4444;color:#fca5a5;"><i class="fa-solid fa-rotate-left"></i></button>
+    </div>
+
+    <div class="workspace">
+
+        <!-- COLUMNA 1: RECURSOS -->
+        <div class="panel">
+            <div class="panel-title"><i class="fa-solid fa-cubes"></i> Recursos del Lab</div>
+            <div id="resourceList">
+                <div class="resource-item" data-res="project">
+                    <div class="name"><i class="fa-solid fa-diagram-project" style="color:var(--accent)"></i> Project ID</div>
+                    <div class="detail">qwiklabs-gcp-02-xxxxx</div>
+                </div>
+                <div class="resource-item" data-res="user">
+                    <div class="name"><i class="fa-solid fa-user" style="color:var(--accent)"></i> User Account</div>
+                    <div class="detail">student@qwiklabs.net</div>
+                </div>
+                <div class="resource-item" data-res="bucket">
+                    <div class="name"><i class="fa-solid fa-bucket" style="color:var(--gcp-yellow)"></i> GCS Bucket</div>
+                    <div class="detail">gs://PROJECT_ID</div>
+                    <div class="status"></div>
+                </div>
+                <div class="resource-item" data-res="dataflowadmin">
+                    <div class="name"><i class="fa-solid fa-user-shield" style="color:var(--iam)"></i> Role: Dataflow Admin</div>
+                    <div class="detail">roles/dataflow.admin</div>
+                    <div class="status"></div>
+                </div>
+                <div class="resource-item" data-res="networkadmin">
+                    <div class="name"><i class="fa-solid fa-network-wired" style="color:var(--net)"></i> Role: Compute Network Admin</div>
+                    <div class="detail">roles/compute.networkAdmin</div>
+                    <div class="status"></div>
+                </div>
+                <div class="resource-item" data-res="pga">
+                    <div class="name"><i class="fa-solid fa-globe" style="color:var(--net)"></i> Private Google Access</div>
+                    <div class="detail">default subnet · us-central1</div>
+                    <div class="status"></div>
+                </div>
+                <div class="resource-item" data-res="job1">
+                    <div class="name"><i class="fa-solid fa-gears" style="color:var(--beam)"></i> Dataflow Job</div>
+                    <div class="detail">job1 (Word_Count)</div>
+                    <div class="status"></div>
+                </div>
+                <div class="resource-item" data-res="job2">
+                    <div class="name"><i class="fa-solid fa-gears" style="color:var(--beam)"></i> Dataflow Job (private)</div>
+                    <div class="detail">job2 --disable-public-ips</div>
+                    <div class="status"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- COLUMNA 2: CANVAS -->
+        <div class="canvas">
+
+            <!-- Task 2: IAM panel + Job attempts -->
+            <div class="stage-card" id="stageIAM">
+                <h2><i class="fa-solid fa-user-shield" style="color:var(--iam)"></i> IAM Roles & Job Attempts <span class="tag">Task 2</span></h2>
+
+                <div class="iam-panel" id="iamPanel">
+                    <div class="iam-header">
+                        <span><i class="fa-solid fa-key"></i> IAM bindings para el user</span>
+                        <span id="iamCount">0 roles</span>
+                    </div>
+                    <div id="iamRoles"></div>
+                </div>
+
+                <div class="job-attempt" id="job1Attempt1">
+                    <div class="job-header">
+                        <span class="job-name">job1</span>
+                        <span class="job-status failed">FAILED</span>
+                    </div>
+                    <div class="job-detail"><span class="k">Template:</span> Word_Count</div>
+                    <div class="job-detail"><span class="k">Region:</span> us-central1</div>
+                    <div class="job-detail"><span class="k">Worker:</span> e2-standard-2</div>
+                    <div class="job-error">
+                        <i class="fa-solid fa-xmark"></i> Permission 'dataflow.jobs.create' denied on project<br>
+                        <span style="color:var(--muted);">Missing role: roles/dataflow.admin</span>
+                    </div>
+                </div>
+
+                <div class="job-attempt" id="job1Attempt2">
+                    <div class="job-header">
+                        <span class="job-name">job1 (retry)</span>
+                        <span class="job-status succeeded">SUCCEEDED</span>
+                    </div>
+                    <div class="job-detail"><span class="k">Template:</span> Word_Count</div>
+                    <div class="job-detail"><span class="k">Input:</span> gs://dataflow-samples/shakespeare/kinglear.txt</div>
+                    <div class="job-detail"><span class="k">Output:</span> gs://PROJECT_ID/results/outputs</div>
+                    <div class="job-success">
+                        <i class="fa-solid fa-check"></i> Job completado en ~5 min. WordCount de King Lear ejecutado.
+                    </div>
+                </div>
+            </div>
+
+            <!-- Task 3: Network + Job 2 + VMs -->
+            <div class="stage-card" id="stageNetwork">
+                <h2><i class="fa-solid fa-network-wired" style="color:var(--net)"></i> Private IPs & PGA <span class="tag">Task 3</span></h2>
+
+                <div class="network-panel" id="networkPanel">
+                    <div class="net-header">
+                        <span><i class="fa-solid fa-globe"></i> default subnet · us-central1</span>
+                        <span id="pgaStatus" style="color:var(--gcp-red);">PGA OFF</span>
+                    </div>
+                    <div class="net-row">
+                        <span class="k">Private Google Access</span>
+                        <span class="v off" id="pgaRow">disabled</span>
+                    </div>
+                    <div class="net-row">
+                        <span class="k">Subnet</span>
+                        <span class="v">default</span>
+                    </div>
+                    <div class="net-row">
+                        <span class="k">Region</span>
+                        <span class="v">us-central1</span>
+                    </div>
+                </div>
+
+                <div class="job-attempt" id="job2Attempt1">
+                    <div class="job-header">
+                        <span class="job-name">job2 --disable-public-ips</span>
+                        <span class="job-status failed">FAILED</span>
+                    </div>
+                    <div class="job-detail"><span class="k">Template:</span> Word_Count</div>
+                    <div class="job-detail"><span class="k">Flag:</span> --disable-public-ips</div>
+                    <div class="job-error">
+                        <i class="fa-solid fa-xmark"></i> Workers cannot access GCS/Dataflow APIs without public IPs.<br>
+                        <span style="color:var(--muted);">Cause: Private Google Access (PGA) is not enabled on subnet.</span>
+                    </div>
+                </div>
+
+                <div class="job-attempt" id="job2Attempt2">
+                    <div class="job-header">
+                        <span class="job-name">job2 --disable-public-ips (retry)</span>
+                        <span class="job-status succeeded">SUCCEEDED</span>
+                    </div>
+                    <div class="job-detail"><span class="k">Template:</span> Word_Count</div>
+                    <div class="job-detail"><span class="k">Flag:</span> --disable-public-ips</div>
+                    <div class="job-detail"><span class="k">VMs:</span> launched without external IP</div>
+                    <div class="job-success">
+                        <i class="fa-solid fa-check"></i> Job completado. VMs sin IP pública, eliminadas al terminar.
+                    </div>
+                </div>
+
+                <div class="vm-visual" id="vmVisual">
+                    <div class="vm-header">
+                        <span><i class="fa-solid fa-server"></i> Compute Engine VMs (durante el job)</span>
+                        <span>efímeras</span>
+                    </div>
+                    <div id="vmItems"></div>
+                </div>
+            </div>
+
+        </div>
+
+        <!-- COLUMNA 3: CONSOLA -->
+        <div class="panel" style="padding:0; background:transparent; border:none;">
+            <div class="console" id="console">
+                <div class="log-line info">// Cloud Shell — Setup IAM & Networking for Dataflow</div>
+                <div class="log-line info">// Presiona "T1 · Bucket" para comenzar</div>
+            </div>
+        </div>
+
+    </div>
+
+    <div class="score-bar">
+        <div class="score-item"><i class="fa-solid fa-star"></i> Score:</div>
+        <div class="score-item"><span class="score-val" id="scoreVal">0</span> / 100</div>
+        <div class="score-item" style="margin-left:auto; color:var(--muted); font-size:0.75rem;">
+            <i class="fa-solid fa-clock"></i> Lab · 1h 15min
+        </div>
+    </div>
+
+    <script>
+        const consoleEl = document.getElementById('console');
+        const wait = (ms) => new Promise(r => setTimeout(r, ms));
+        let score = 0;
+        const projectId = 'qwiklabs-gcp-02-xxxxx';
+        const userEmail = 'student@qwiklabs.net';
+        const region = 'us-central1';
+        let iamRoleCount = 0;
+
+        function log(text, type = 'info') {
+            const div = document.createElement('div');
+            div.className = `log-line ${type}`;
+            div.innerHTML = text;
+            consoleEl.appendChild(div);
+            consoleEl.scrollTop = consoleEl.scrollHeight;
+        }
+
+        function clearConsole() {
+            consoleEl.innerHTML = '<div class="log-line info">// Consola reiniciada</div>';
+        }
+
+        function addScore(pts) {
+            score += pts;
+            document.getElementById('scoreVal').textContent = score;
+        }
+
+        function markResource(res, detail, status, isBad) {
+            const el = document.querySelector(`.resource-item[data-res="${res}"]`);
+            if (!el) return;
+            el.classList.add('used');
+            if (detail) {
+                const d = el.querySelector('.detail');
+                if (d) d.textContent = detail;
+            }
+            if (status) {
+                const s = el.querySelector('.status');
+                if (s) {
+                    s.textContent = status;
+                    if (isBad) s.classList.add('bad');
+                    else s.classList.remove('bad');
+                }
+            }
+        }
+
+        function addRole(roleName, rolePath, isMissing) {
+            iamRoleCount++;
+            document.getElementById('iamCount').textContent = iamRoleCount + ' role(s)';
+            const list = document.getElementById('iamRoles');
+            const div = document.createElement('div');
+            div.className = 'role-item' + (isMissing ? ' missing' : '');
+            div.innerHTML = `<i class="fa-solid fa-key"></i><span class="role-name">${rolePath}</span><span class="role-badge">${isMissing ? 'MISSING' : '✓ assigned'}</span>`;
+            list.appendChild(div);
+        }
+
+        // ==========================================================
+        // TASK 1: CREATE BUCKET
+        // ==========================================================
+        async function runTask1() {
+            document.getElementById('btnTask1').disabled = true;
+            clearConsole();
+
+            log('// Task 1: Crear bucket y setup de variables', 'info');
+            log('$ PROJECT=`gcloud config list --format \'value(core.project)\'`', 'cmd');
+            await wait(400);
+            log('$ USER_EMAIL=`gcloud config list account --format "value(core.account)"`', 'cmd');
+            await wait(400);
+            log('$ REGION="' + region + '"', 'cmd');
+            await wait(400);
+            log('  PROJECT=' + projectId, 'key');
+            log('  USER_EMAIL=' + userEmail, 'key');
+            log('  REGION=' + region, 'key');
+            await wait(500);
+
+            log('', 'info');
+            log('$ gcloud storage buckets create gs://$PROJECT --project=$PROJECT', 'cmd');
+            await wait(1000);
+            log('Creating gs://' + projectId + '/...', 'info');
+            await wait(600);
+            log('✓ Bucket creado.', 'success');
+            markResource('project', projectId, '✓');
+            markResource('user', userEmail, '✓');
+            markResource('bucket', 'gs://' + projectId, '✓ creado');
+            await wait(400);
+
+            addScore(20);
+            document.getElementById('btnTask1').classList.add('done');
+            document.getElementById('btnTask2').disabled = false;
+            document.getElementById('btnTask2').classList.add('active');
+        }
+
+        // ==========================================================
+        // TASK 2: LAUNCH DATAFLOW JOB (FAIL → ADD IAM → SUCCESS)
+        // ==========================================================
+        async function runTask2() {
+            document.getElementById('btnTask2').disabled = true;
+            document.getElementById('stageIAM').classList.add('active');
+            document.getElementById('iamPanel').classList.add('show');
+
+            log('', 'info');
+            log('// Task 2: Lanzar Dataflow job (fallará por IAM)', 'info');
+            log('$ gcloud projects get-iam-policy $PROJECT \\', 'cmd');
+            await wait(200);
+            log('    --format=\'table(bindings.role)\' \\', 'cmd');
+            await wait(200);
+            log('    --flatten="bindings[].members" \\', 'cmd');
+            await wait(200);
+            log('    --filter="bindings.members:$USER_EMAIL"', 'cmd');
+            await wait(800);
+            log('  (solo roles básicos, sin dataflow.admin)', 'warn');
+            await wait(400);
+
+            // Mostrar roles actuales (sin dataflow.admin)
+            addRole('Editor', 'roles/editor', false);
+            await wait(300);
+
+            log('', 'info');
+            log('$ gcloud dataflow jobs run job1 \\', 'cmd');
+            await wait(150);
+            log('    --gcs-location gs://dataflow-templates-' + region + '/latest/Word_Count \\', 'cmd');
+            await wait(150);
+            log('    --region ' + region + ' \\', 'cmd');
+            await wait(150);
+            log('    --worker-machine-type e2-standard-2 \\', 'cmd');
+            await wait(150);
+            log('    --staging-location gs://' + projectId + '/tmp \\', 'cmd');
+            await wait(150);
+            log('    --parameters inputFile=gs://dataflow-samples/shakespeare/kinglear.txt,output=gs://' + projectId + '/results/outputs', 'cmd');
+            await wait(1000);
+
+            log('ERROR: (gcloud.dataflow.jobs.run) PERMISSION_DENIED', 'error');
+            log('  Permission \'dataflow.jobs.create\' denied on project', 'error');
+            await wait(600);
+
+            // Mostrar intento 1 fallido
+            document.getElementById('job1Attempt1').classList.add('show');
+            markResource('job1', 'job1 (Word_Count)', '✗ FAILED', true);
+            await wait(600);
+
+            log('', 'info');
+            log('// Asignar rol roles/dataflow.admin al user', 'warn');
+            log('$ gcloud projects add-iam-policy-binding $PROJECT \\', 'cmd');
+            await wait(200);
+            log('    --member=user:$USER_EMAIL \\', 'cmd');
+            await wait(200);
+            log('    --role=roles/dataflow.admin', 'cmd');
+            await wait(1000);
+            log('Updated IAM policy for project [' + projectId + '].', 'success');
+            addRole('Dataflow Admin', 'roles/dataflow.admin', false);
+            markResource('dataflowadmin', 'roles/dataflow.admin', '✓ asignado');
+            await wait(500);
+
+            log('', 'info');
+            log('// Retry job1', 'info');
+            log('$ gcloud dataflow jobs run job1 \\', 'cmd');
+            await wait(300);
+            log('    (mismos parámetros)', 'info');
+            await wait(1000);
+
+            log('JOB_MESSAGE_DETAILED: Job submitted: job1', 'beam');
+            await wait(800);
+            log('JOB_MESSAGE_DETAILED: Workers started (e2-standard-2)', 'beam');
+            await wait(800);
+            log('JOB_MESSAGE_DETAILED: Pipeline running...', 'beam');
+            await wait(1000);
+            log('JOB_MESSAGE_DETAILED: Job status: SUCCEEDED', 'success');
+            log('  → WordCount de King Lear ejecutado en ~5 min', 'key');
+            await wait(400);
+
+            // Mostrar intento 2 exitoso
+            document.getElementById('job1Attempt2').classList.add('show');
+            markResource('job1', 'job1 (Word_Count)', '✓ SUCCEEDED');
+            await wait(500);
+
+            addScore(40);
+            document.getElementById('btnTask2').classList.add('done');
+            document.getElementById('btnTask3').disabled = false;
+            document.getElementById('btnTask3').classList.add('active');
+        }
+
+        // ==========================================================
+        // TASK 3: PRIVATE IPS (PGA)
+        // ==========================================================
+        async function runTask3() {
+            document.getElementById('btnTask3').disabled = true;
+            document.getElementById('stageNetwork').classList.add('active');
+            document.getElementById('networkPanel').classList.add('show');
+
+            log('', 'info');
+            log('// Task 3: Lanzar job con --disable-public-ips', 'info');
+            log('$ gcloud dataflow jobs run job2 \\', 'cmd');
+            await wait(150);
+            log('    --gcs-location gs://dataflow-templates-' + region + '/latest/Word_Count \\', 'cmd');
+            await wait(150);
+            log('    --region ' + region + ' \\', 'cmd');
+            await wait(150);
+            log('    --worker-machine-type e2-standard-2 \\', 'cmd');
+            await wait(150);
+            log('    --staging-location gs://' + projectId + '/tmp \\', 'cmd');
+            await wait(150);
+            log('    --parameters inputFile=...,output=... \\', 'cmd');
+            await wait(150);
+            log('    --disable-public-ips', 'cmd');
+            await wait(1000);
+
+            log('JOB_MESSAGE_DETAILED: Job submitted: job2', 'beam');
+            await wait(800);
+            log('ERROR: Job failed. Workers cannot reach APIs without public IPs.', 'error');
+            log('  Cause: Private Google Access (PGA) not enabled on subnet.', 'warn');
+            await wait(600);
+
+            document.getElementById('job2Attempt1').classList.add('show');
+            markResource('job2', 'job2 --disable-public-ips', '✗ FAILED (PGA off)', true);
+            await wait(600);
+
+            log('', 'info');
+            log('// Asignar Compute Network Admin + habilitar PGA', 'warn');
+            log('$ gcloud projects add-iam-policy-binding $PROJECT \\', 'cmd');
+            await wait(200);
+            log('    --member=user:$USER_EMAIL \\', 'cmd');
+            await wait(200);
+            log('    --role=roles/compute.networkAdmin', 'cmd');
+            await wait(1000);
+            log('Updated IAM policy.', 'success');
+            addRole('Compute Network Admin', 'roles/compute.networkAdmin', false);
+            markResource('networkadmin', 'roles/compute.networkAdmin', '✓ asignado');
+            await wait(500);
+
+            log('', 'info');
+            log('$ gcloud compute networks subnets update default \\', 'cmd');
+            await wait(200);
+            log('    --region=' + region + ' \\', 'cmd');
+            await wait(200);
+            log('    --enable-private-ip-google-access', 'cmd');
+            await wait(1000);
+            log('Updating subnetwork default...', 'net');
+            await wait(600);
+            log('✓ PGA habilitado en subnet default.', 'success');
+            document.getElementById('pgaStatus').textContent = 'PGA ON';
+            document.getElementById('pgaStatus').style.color = 'var(--gcp-green)';
+            const pgaRow = document.getElementById('pgaRow');
+            pgaRow.textContent = 'enabled';
+            pgaRow.className = 'v on';
+            markResource('pga', 'default subnet · us-central1', '✓ habilitado');
+            await wait(500);
+
+            log('', 'info');
+            log('// Retry job2 con --disable-public-ips', 'info');
+            log('$ gcloud dataflow jobs run job2 ... --disable-public-ips', 'cmd');
+            await wait(800);
+
+            log('JOB_MESSAGE_DETAILED: Job submitted: job2', 'beam');
+            await wait(800);
+            log('JOB_MESSAGE_DETAILED: Workers started (private IPs)', 'net');
+            await wait(800);
+            log('JOB_MESSAGE_DETAILED: Pipeline running...', 'beam');
+            await wait(1000);
+            log('JOB_MESSAGE_DETAILED: Job status: SUCCEEDED', 'success');
+            await wait(400);
+
+            // VMs sin IP externa
+            const vmVisual = document.getElementById('vmVisual');
+            vmVisual.classList.add('show');
+            const vmItems = document.getElementById('vmItems');
+            const vms = [
+                { name: 'dataflow-worker-1', ip: 'no external IP', type: 'private' },
+                { name: 'dataflow-worker-2', ip: 'no external IP', type: 'private' }
+            ];
+            for (const vm of vms) {
+                const div = document.createElement('div');
+                div.className = 'vm-item';
+                div.innerHTML = `<i class="fa-solid fa-server"></i><span class="vm-name">${vm.name}</span><span class="vm-ip ${vm.type}">${vm.ip}</span>`;
+                vmItems.appendChild(div);
+                log('  ' + vm.name + ' → 10.x.x.x (sin IP pública)', 'net');
+                await wait(400);
+            }
+            await wait(400);
+            log('// VMs eliminadas al terminar el job', 'info');
+
+            document.getElementById('job2Attempt2').classList.add('show');
+            markResource('job2', 'job2 --disable-public-ips', '✓ SUCCEEDED (private)');
+            await wait(500);
+
+            addScore(40);
+
+            log('', 'info');
+            log('=== LAB COMPLETADO ===', 'success');
+            log('Score final: ' + score + ' / 100', 'success');
+            log('job1: falló por falta de roles/dataflow.admin → retry OK', 'info');
+            log('job2: falló por PGA OFF → habilitado PGA → retry OK con IPs privadas', 'key');
+
+            document.getElementById('btnTask3').classList.add('done');
+        }
+
+        // ==========================================================
+        // RESET
+        // ==========================================================
+        function resetAll() {
+            score = 0;
+            iamRoleCount = 0;
+            document.getElementById('scoreVal').textContent = '0';
+
+            document.querySelectorAll('.resource-item').forEach(el => {
+                el.classList.remove('used');
+                const s = el.querySelector('.status');
+                if (s) {
+                    s.textContent = '';
+                    s.classList.remove('bad');
+                }
+            });
+
+            document.querySelector('[data-res="bucket"] .detail').textContent = 'gs://PROJECT_ID';
+            document.querySelector('[data-res="dataflowadmin"] .detail').textContent = 'roles/dataflow.admin';
+            document.querySelector('[data-res="networkadmin"] .detail').textContent = 'roles/compute.networkAdmin';
+            document.querySelector('[data-res="pga"] .detail').textContent = 'default subnet · us-central1';
+            document.querySelector('[data-res="job1"] .detail').textContent = 'job1 (Word_Count)';
+            document.querySelector('[data-res="job2"] .detail').textContent = 'job2 --disable-public-ips';
+
+            document.querySelectorAll('.stage-card').forEach(el => el.classList.remove('active'));
+
+            document.getElementById('iamPanel').classList.remove('show');
+            document.getElementById('iamRoles').innerHTML = '';
+            document.getElementById('iamCount').textContent = '0 roles';
+            document.getElementById('job1Attempt1').classList.remove('show');
+            document.getElementById('job1Attempt2').classList.remove('show');
+            document.getElementById('networkPanel').classList.remove('show');
+            document.getElementById('job2Attempt1').classList.remove('show');
+            document.getElementById('job2Attempt2').classList.remove('show');
+            document.getElementById('vmVisual').classList.remove('show');
+            document.getElementById('vmItems').innerHTML = '';
+
+            document.getElementById('pgaStatus').textContent = 'PGA OFF';
+            document.getElementById('pgaStatus').style.color = 'var(--gcp-red)';
+            const pgaRow = document.getElementById('pgaRow');
+            pgaRow.textContent = 'disabled';
+            pgaRow.className = 'v off';
+
+            ['btnTask1','btnTask2','btnTask3'].forEach(id => {
+                const btn = document.getElementById(id);
+                btn.disabled = (id !== 'btnTask1');
+                btn.classList.remove('active', 'done');
+            });
+            document.getElementById('btnTask1').disabled = false;
+
+            clearConsole();
+        }
+    </script>
+</body>
+</html>

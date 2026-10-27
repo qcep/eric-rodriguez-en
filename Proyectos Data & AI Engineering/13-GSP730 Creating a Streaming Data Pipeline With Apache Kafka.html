@@ -1,0 +1,1120 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Lab GSP730: Streaming Pipeline con Apache Kafka</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        :root {
+            --bg: #0b1120;
+            --panel: #1e293b;
+            --panel-2: #334155;
+            --text: #f1f5f9;
+            --muted: #94a3b8;
+            --accent: #4285f4;
+            --gcp-yellow: #fbbc04;
+            --gcp-green: #34a853;
+            --gcp-red: #ea4335;
+            --kafka: #231f20;
+            --kafka-accent: #f97316;
+            --gce: #4285f4;
+            --border: #334155;
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+
+        body {
+            font-family: 'Segoe UI', Roboto, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            min-height: 100vh;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        header { text-align: center; margin-bottom: 20px; max-width: 920px; }
+        h1 { font-size: 1.4rem; font-weight: 300; letter-spacing: 1px; margin-bottom: 8px; }
+        h1 i { color: var(--kafka-accent); }
+        p.subtitle { color: var(--muted); font-size: 0.88rem; }
+        p.subtitle code { color: var(--gcp-yellow); background: var(--panel); padding: 2px 6px; border-radius: 4px; }
+
+        .controls {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+
+        .btn {
+            padding: 10px 14px;
+            border: 2px solid var(--border);
+            background: var(--panel);
+            color: var(--text);
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 0.78rem;
+            font-weight: 600;
+            transition: all 0.25s;
+            display: flex;
+            align-items: center;
+            gap: 7px;
+        }
+
+        .btn:hover:not(:disabled) { transform: translateY(-2px); border-color: var(--kafka-accent); }
+        .btn:disabled { opacity: 0.35; cursor: not-allowed; }
+        .btn.active { border-color: var(--kafka-accent); background: rgba(249,115,22,0.15); box-shadow: 0 0 15px rgba(249,115,22,0.2); }
+        .btn.done { border-color: var(--gcp-green); background: rgba(52,168,83,0.12); color: var(--gcp-green); }
+
+        .btn i { font-size: 0.92rem; }
+
+        .workspace {
+            display: grid;
+            grid-template-columns: 290px 1fr 380px;
+            gap: 18px;
+            width: 100%;
+            max-width: 1620px;
+            align-items: start;
+        }
+
+        .panel {
+            background: var(--panel);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 16px;
+        }
+
+        .panel-title {
+            font-size: 0.72rem;
+            text-transform: uppercase;
+            letter-spacing: 1.5px;
+            color: var(--muted);
+            margin-bottom: 14px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .resource-item {
+            background: var(--panel-2);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 9px 11px;
+            font-size: 0.73rem;
+            font-family: 'Courier New', monospace;
+            color: var(--muted);
+            display: flex;
+            flex-direction: column;
+            gap: 3px;
+            margin-bottom: 7px;
+            transition: all 0.4s ease;
+            opacity: 0.45;
+        }
+
+        .resource-item.used {
+            opacity: 1;
+            border-color: var(--kafka-accent);
+            color: var(--text);
+            background: rgba(249,115,22,0.08);
+        }
+
+        .resource-item .name { display: flex; align-items: center; gap: 6px; }
+        .resource-item .name i { font-size: 0.82rem; }
+        .resource-item .detail { font-size: 0.64rem; color: var(--kafka-accent); font-weight: bold; word-break: break-all; }
+        .resource-item .status { font-size: 0.62rem; color: var(--gcp-green); }
+
+        .canvas {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+
+        .stage-card {
+            background: var(--panel);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 16px;
+            opacity: 0.3;
+            transform: translateY(8px);
+            transition: all 0.5s ease;
+        }
+
+        .stage-card.active {
+            opacity: 1;
+            transform: translateY(0);
+            border-color: var(--kafka-accent);
+            box-shadow: 0 0 25px rgba(249,115,22,0.12);
+        }
+
+        .stage-card h2 {
+            font-size: 0.92rem;
+            margin-bottom: 12px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .stage-card h2 .tag {
+            font-size: 0.58rem;
+            padding: 3px 8px;
+            border-radius: 10px;
+            background: var(--panel-2);
+            color: var(--muted);
+            font-family: monospace;
+            margin-left: auto;
+        }
+
+        /* VM card */
+        .vm-card {
+            display: none;
+            background: #0d1117;
+            border-radius: 8px;
+            padding: 12px;
+            border: 1px solid var(--gce);
+            margin-top: 8px;
+            font-family: 'Courier New', monospace;
+            font-size: 0.66rem;
+        }
+        .vm-card.show { display: block; animation: fadeIn 0.4s ease; }
+        .vm-header {
+            color: var(--gce);
+            font-size: 0.66rem;
+            margin-bottom: 8px;
+            padding-bottom: 6px;
+            border-bottom: 1px solid rgba(66,133,244,0.3);
+            display: flex;
+            justify-content: space-between;
+        }
+        .vm-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 3px 0;
+            border-bottom: 1px solid rgba(51,65,85,0.3);
+        }
+        .vm-row:last-child { border-bottom: none; }
+        .vm-row .k { color: var(--muted); }
+        .vm-row .v { color: var(--gcp-yellow); font-weight: bold; }
+
+        /* Topics visual */
+        .topics-visual {
+            display: none;
+            background: #0d1117;
+            border-radius: 8px;
+            padding: 12px;
+            border: 1px solid var(--kafka-accent);
+            margin-top: 8px;
+        }
+        .topics-visual.show { display: block; animation: fadeIn 0.4s ease; }
+        .topics-header {
+            color: var(--kafka-accent);
+            font-size: 0.66rem;
+            margin-bottom: 8px;
+            padding-bottom: 6px;
+            border-bottom: 1px solid rgba(249,115,22,0.3);
+            display: flex;
+            justify-content: space-between;
+        }
+        .topic-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 6px 8px;
+            margin-bottom: 4px;
+            background: rgba(249,115,22,0.06);
+            border-left: 3px solid var(--kafka-accent);
+            border-radius: 4px;
+            font-family: 'Courier New', monospace;
+            font-size: 0.65rem;
+            opacity: 0;
+            animation: fadeIn 0.3s ease forwards;
+        }
+        .topic-item i { color: var(--kafka-accent); }
+        .topic-item .topic-name { color: var(--text); font-weight: bold; }
+        .topic-item .topic-meta { color: var(--muted); font-size: 0.58rem; margin-left: auto; }
+
+        /* Message stream */
+        .message-stream {
+            display: none;
+            background: #0d1117;
+            border-radius: 8px;
+            padding: 10px;
+            border: 1px solid var(--border);
+            margin-top: 8px;
+            font-family: 'Courier New', monospace;
+            font-size: 0.63rem;
+            max-height: 200px;
+            overflow-y: auto;
+        }
+        .message-stream.show { display: block; animation: fadeIn 0.4s ease; }
+        .msg-header {
+            color: var(--muted);
+            font-size: 0.6rem;
+            margin-bottom: 6px;
+            padding-bottom: 4px;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            justify-content: space-between;
+        }
+        .msg-line {
+            padding: 2px 0;
+            color: var(--muted);
+            opacity: 0;
+            animation: fadeIn 0.2s ease forwards;
+        }
+        .msg-line .arrow { color: var(--kafka-accent); }
+        .msg-line .key { color: #93c5fd; }
+        .msg-line .val { color: var(--gcp-yellow); font-weight: bold; }
+
+        /* Java code */
+        .java-editor {
+            display: none;
+            background: #0d1117;
+            border-radius: 8px;
+            padding: 10px;
+            font-family: 'Courier New', monospace;
+            font-size: 0.63rem;
+            border: 1px solid var(--border);
+            margin-top: 8px;
+            max-height: 260px;
+            overflow-y: auto;
+            line-height: 1.55;
+        }
+        .java-editor.show { display: block; animation: fadeIn 0.4s ease; }
+        .code-line { white-space: pre; }
+        .c-comment { color: #6a9955; }
+        .c-keyword { color: #c586c0; }
+        .c-string { color: #ce9178; }
+        .c-func { color: #dcdcaa; }
+        .c-var { color: #9cdcfe; }
+        .c-filename {
+            color: var(--kafka-accent);
+            font-weight: bold;
+            display: block;
+            margin-bottom: 6px;
+            padding-bottom: 4px;
+            border-bottom: 1px solid var(--border);
+        }
+
+        /* Pipeline visual */
+        .pipeline-visual {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 5px;
+            padding: 15px 0;
+            flex-wrap: wrap;
+            position: relative;
+        }
+
+        .pipeline-node {
+            flex: 1;
+            min-width: 95px;
+            text-align: center;
+            padding: 11px 7px;
+            border-radius: 9px;
+            font-size: 0.66rem;
+            font-weight: 600;
+            border: 2px solid var(--border);
+            background: var(--panel-2);
+            color: var(--muted);
+            opacity: 0;
+            transform: scale(0.85);
+            transition: all 0.5s ease;
+            position: relative;
+        }
+
+        .pipeline-node.show { opacity: 1; transform: scale(1); }
+        .pipeline-node.producer { border-color: var(--accent); color: #93c5fd; background: rgba(66,133,244,0.1); }
+        .pipeline-node.topic-in { border-color: var(--kafka-accent); color: #fdba74; background: rgba(249,115,22,0.1); }
+        .pipeline-node.streams { border-color: var(--gcp-yellow); color: #fde68a; background: rgba(251,188,4,0.1); }
+        .pipeline-node.topic-out { border-color: var(--kafka-accent); color: #fdba74; background: rgba(249,115,22,0.1); }
+        .pipeline-node.consumer { border-color: var(--gcp-green); color: #86efac; background: rgba(52,168,83,0.1); }
+
+        .pipeline-node .sub { display: block; font-size: 0.55rem; font-weight: normal; color: var(--muted); margin-top: 3px; font-family: monospace; }
+        .pipeline-node .count {
+            display: block;
+            font-size: 0.62rem;
+            color: var(--gcp-green);
+            margin-top: 4px;
+            font-weight: bold;
+            font-family: monospace;
+        }
+
+        .pipeline-arrow {
+            color: var(--border);
+            font-size: 0.9rem;
+            opacity: 0;
+            transition: opacity 0.4s ease;
+        }
+        .pipeline-arrow.show { opacity: 1; color: var(--kafka-accent); }
+        .pipeline-arrow.flowing { color: var(--gcp-green); animation: pulse 1s infinite; }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        /* WordCount output */
+        .wordcount-output {
+            display: none;
+            background: #0d1117;
+            border-radius: 8px;
+            padding: 12px;
+            border: 1px solid var(--gcp-green);
+            margin-top: 8px;
+            font-family: 'Courier New', monospace;
+            font-size: 0.66rem;
+        }
+        .wordcount-output.show { display: block; animation: fadeIn 0.4s ease; }
+        .wc-header {
+            color: var(--gcp-green);
+            font-size: 0.66rem;
+            margin-bottom: 8px;
+            padding-bottom: 6px;
+            border-bottom: 1px solid rgba(52,168,83,0.3);
+            display: flex;
+            justify-content: space-between;
+        }
+        .wc-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 3px 6px;
+            border-bottom: 1px solid rgba(51,65,85,0.3);
+            opacity: 0;
+            animation: fadeIn 0.3s ease forwards;
+        }
+        .wc-row:last-child { border-bottom: none; }
+        .wc-row .word { color: #93c5fd; }
+        .wc-row .count-num { color: var(--gcp-yellow); font-weight: bold; }
+        .wc-row.updated {
+            background: rgba(251,188,4,0.08);
+        }
+        .wc-row .update-badge {
+            color: var(--gcp-green);
+            font-size: 0.55rem;
+            margin-left: 6px;
+        }
+
+        /* Shutdown box */
+        .shutdown-box {
+            display: none;
+            background: #1a0a0a;
+            border-radius: 8px;
+            padding: 12px;
+            border: 1px solid var(--gcp-red);
+            margin-top: 8px;
+            font-family: 'Courier New', monospace;
+            font-size: 0.66rem;
+        }
+        .shutdown-box.show { display: block; animation: fadeIn 0.4s ease; }
+        .shutdown-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 5px 0;
+            opacity: 0;
+            animation: fadeIn 0.3s ease forwards;
+        }
+        .shutdown-item i { color: var(--gcp-red); }
+        .shutdown-item .done { color: var(--gcp-green); margin-left: auto; font-size: 0.6rem; }
+
+        .console {
+            font-family: 'Courier New', monospace;
+            font-size: 0.69rem;
+            background: #000;
+            border-radius: 8px;
+            padding: 14px;
+            height: 100%;
+            min-height: 500px;
+            max-height: 920px;
+            overflow-y: auto;
+            border: 1px solid var(--border);
+        }
+
+        .log-line { margin-bottom: 5px; line-height: 1.45; animation: fadeIn 0.3s ease; word-wrap: break-word; }
+        .log-line.cmd { color: var(--gcp-green); font-weight: bold; }
+        .log-line.info { color: var(--muted); }
+        .log-line.success { color: var(--gcp-green); }
+        .log-line.warn { color: var(--gcp-yellow); }
+        .log-line.error { color: var(--gcp-red); }
+        .log-line.key { color: #93c5fd; }
+        .log-line.kafka { color: #fdba74; }
+        .log-line.stream { color: var(--gcp-yellow); }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateX(-5px); }
+            to { opacity: 1; transform: translateX(0); }
+        }
+
+        @media (max-width: 1250px) {
+            .workspace { grid-template-columns: 1fr; }
+            .pipeline-visual { flex-wrap: wrap; }
+            .pipeline-arrow { display: none; }
+        }
+
+        .score-bar {
+            margin-top: 20px;
+            display: flex;
+            gap: 20px;
+            align-items: center;
+            background: var(--panel);
+            padding: 12px 24px;
+            border-radius: 10px;
+            border: 1px solid var(--border);
+            font-size: 0.85rem;
+        }
+        .score-bar .score-item { display: flex; align-items: center; gap: 8px; }
+        .score-bar .score-item i { color: var(--gcp-yellow); }
+        .score-bar .score-val { color: var(--gcp-green); font-weight: bold; font-family: monospace; }
+    </style>
+</head>
+<body>
+
+    <header>
+        <h1><i class="fa-solid fa-stream"></i> Creating a Streaming Data Pipeline with Apache Kafka</h1>
+        <p class="subtitle">Lab GSP730 · Kafka Streams WordCount · Compute Engine VM · Región: <code>us-central1-f</code></p>
+    </header>
+
+    <div class="controls">
+        <button class="btn" id="btnTask1" onclick="runTask1()"><i class="fa-solid fa-cubes"></i> T1 · Setup Kafka</button>
+        <button class="btn" id="btnTask2" onclick="runTask2()" disabled><i class="fa-solid fa-list"></i> T2 · Topics + Data</button>
+        <button class="btn" id="btnTask3" onclick="runTask3()" disabled><i class="fa-solid fa-gears"></i> T3 · WordCount</button>
+        <button class="btn" id="btnTask4" onclick="runTask4()" disabled><i class="fa-solid fa-eye"></i> T4 · Output</button>
+        <button class="btn" id="btnTask5" onclick="runTask5()" disabled><i class="fa-solid fa-power-off"></i> T5 · Shutdown</button>
+        <button class="btn" id="btnReset" onclick="resetAll()" style="border-color:#ef4444;color:#fca5a5;"><i class="fa-solid fa-rotate-left"></i></button>
+    </div>
+
+    <div class="workspace">
+
+        <!-- COLUMNA 1: RECURSOS -->
+        <div class="panel">
+            <div class="panel-title"><i class="fa-solid fa-cubes"></i> Recursos del Lab</div>
+            <div id="resourceList">
+                <div class="resource-item" data-res="project">
+                    <div class="name"><i class="fa-solid fa-diagram-project" style="color:var(--accent)"></i> Project ID</div>
+                    <div class="detail">qwiklabs-gcp-02-xxxxx</div>
+                </div>
+                <div class="resource-item" data-res="firewall">
+                    <div class="name"><i class="fa-solid fa-shield" style="color:var(--gcp-green)"></i> Firewall Rule</div>
+                    <div class="detail">allow-iap-ssh (tcp:22)</div>
+                    <div class="status"></div>
+                </div>
+                <div class="resource-item" data-res="vm">
+                    <div class="name"><i class="fa-solid fa-server" style="color:var(--gce)"></i> Kafka VM</div>
+                    <div class="detail">kafka-1-vm (e2-medium)</div>
+                    <div class="status"></div>
+                </div>
+                <div class="resource-item" data-res="tag">
+                    <div class="name"><i class="fa-solid fa-tag" style="color:var(--gcp-yellow)"></i> IAP Tag</div>
+                    <div class="detail">iap-gce</div>
+                    <div class="status"></div>
+                </div>
+                <div class="resource-item" data-res="broker">
+                    <div class="name"><i class="fa-solid fa-fire" style="color:var(--kafka-accent)"></i> Kafka Broker</div>
+                    <div class="detail">localhost:9092</div>
+                    <div class="status"></div>
+                </div>
+                <div class="resource-item" data-res="topicin">
+                    <div class="name"><i class="fa-solid fa-arrow-right-to-bracket" style="color:var(--kafka-accent)"></i> Input Topic</div>
+                    <div class="detail">streams-plaintext-input</div>
+                    <div class="status"></div>
+                </div>
+                <div class="resource-item" data-res="topicout">
+                    <div class="name"><i class="fa-solid fa-arrow-right-from-bracket" style="color:var(--kafka-accent)"></i> Output Topic</div>
+                    <div class="detail">streams-wordcount-output</div>
+                    <div class="status"></div>
+                </div>
+                <div class="resource-item" data-res="input">
+                    <div class="name"><i class="fa-solid fa-file-lines" style="color:var(--gcp-yellow)"></i> Input Data</div>
+                    <div class="detail">/tmp/file-input.txt (3 lines)</div>
+                    <div class="status"></div>
+                </div>
+                <div class="resource-item" data-res="app">
+                    <div class="name"><i class="fa-brands fa-java" style="color:var(--gcp-red)"></i> WordCountDemo</div>
+                    <div class="detail">Kafka Streams app</div>
+                    <div class="status"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- COLUMNA 2: CANVAS -->
+        <div class="canvas">
+
+            <!-- Task 1: VM card -->
+            <div class="stage-card" id="stageVM">
+                <h2><i class="fa-solid fa-server" style="color:var(--gce)"></i> Kafka VM Deployment <span class="tag">Task 1</span></h2>
+                <div class="vm-card" id="vmCard">
+                    <div class="vm-header">
+                        <span><i class="fa-solid fa-circle" style="color:var(--gcp-green); font-size:0.5rem;"></i> kafka-1-vm</span>
+                        <span style="color:var(--gcp-green);">RUNNING</span>
+                    </div>
+                    <div class="vm-row"><span class="k">Deployment</span><span class="v">Apache Kafka Server on Ubuntu 24.04</span></div>
+                    <div class="vm-row"><span class="k">Zone</span><span class="v">us-central1-f</span></div>
+                    <div class="vm-row"><span class="k">Machine type</span><span class="v">e2-medium</span></div>
+                    <div class="vm-row"><span class="k">Service account</span><span class="v">apache-kafka</span></div>
+                    <div class="vm-row"><span class="k">Kafka home</span><span class="v">/opt/kafka/</span></div>
+                    <div class="vm-row"><span class="k">Broker</span><span class="v">localhost:9092</span></div>
+                    <div class="vm-row"><span class="k">Cluster ID</span><span class="v">(random UUID)</span></div>
+                </div>
+            </div>
+
+            <!-- Task 2: Topics + Input data -->
+            <div class="stage-card" id="stageTopics">
+                <h2><i class="fa-solid fa-list" style="color:var(--kafka-accent)"></i> Topics & Input Data <span class="tag">Task 2</span></h2>
+                <div class="topics-visual" id="topicsVisual">
+                    <div class="topics-header">
+                        <span><i class="fa-solid fa-layer-group"></i> Kafka Topics</span>
+                        <span>2 topics</span>
+                    </div>
+                    <div id="topicItems"></div>
+                </div>
+                <div class="message-stream" id="inputMessages">
+                    <div class="msg-header">
+                        <span><i class="fa-solid fa-arrow-right"></i> Producer → streams-plaintext-input</span>
+                        <span>3 messages</span>
+                    </div>
+                    <div id="inputMsgList"></div>
+                </div>
+            </div>
+
+            <!-- Task 3: Java code + Pipeline -->
+            <div class="stage-card" id="stageStreams">
+                <h2><i class="fa-brands fa-java" style="color:var(--gcp-red)"></i> WordCountDemo · Kafka Streams <span class="tag">Task 3</span></h2>
+                <div class="java-editor" id="javaEditor">
+                    <div class="c-filename">WordCountLambdaExample.java</div>
+                </div>
+                <div class="pipeline-visual" id="pipelineVisual">
+                    <div class="pipeline-node producer" data-pnode="producer">
+                        <i class="fa-solid fa-arrow-right-from-bracket"></i> Producer
+                        <span class="sub">console-producer</span>
+                        <span class="count" data-count="producer"></span>
+                    </div>
+                    <div class="pipeline-arrow" data-parrow="1"><i class="fa-solid fa-arrow-right"></i></div>
+                    <div class="pipeline-node topic-in" data-pnode="topicin">
+                        <i class="fa-solid fa-inbox"></i> Input Topic
+                        <span class="sub">streams-plaintext-input</span>
+                        <span class="count" data-count="topicin"></span>
+                    </div>
+                    <div class="pipeline-arrow" data-parrow="2"><i class="fa-solid fa-arrow-right"></i></div>
+                    <div class="pipeline-node streams" data-pnode="streams">
+                        <i class="fa-solid fa-gears"></i> WordCount
+                        <span class="sub">Kafka Streams</span>
+                        <span class="count" data-count="streams"></span>
+                    </div>
+                    <div class="pipeline-arrow" data-parrow="3"><i class="fa-solid fa-arrow-right"></i></div>
+                    <div class="pipeline-node topic-out" data-pnode="topicout">
+                        <i class="fa-solid fa-outbox"></i> Output Topic
+                        <span class="sub">streams-wordcount-output</span>
+                        <span class="count" data-count="topicout"></span>
+                    </div>
+                    <div class="pipeline-arrow" data-parrow="4"><i class="fa-solid fa-arrow-right"></i></div>
+                    <div class="pipeline-node consumer" data-pnode="consumer">
+                        <i class="fa-solid fa-eye"></i> Consumer
+                        <span class="sub">console-consumer</span>
+                        <span class="count" data-count="consumer"></span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Task 4: WordCount output -->
+            <div class="stage-card" id="stageOutput">
+                <h2><i class="fa-solid fa-table-list" style="color:var(--gcp-green)"></i> WordCount Output <span class="tag">Task 4</span></h2>
+                <div class="wordcount-output" id="wordcountOutput">
+                    <div class="wc-header">
+                        <span><i class="fa-solid fa-check-circle"></i> streams-wordcount-output (changelog)</span>
+                        <span id="wcCount">0 entries</span>
+                    </div>
+                    <div id="wcRows"></div>
+                </div>
+            </div>
+
+            <!-- Task 5: Shutdown -->
+            <div class="stage-card" id="stageShutdown">
+                <h2><i class="fa-solid fa-power-off" style="color:var(--gcp-red)"></i> Shutdown Cluster <span class="tag">Task 5</span></h2>
+                <div class="shutdown-box" id="shutdownBox">
+                    <div id="shutdownItems"></div>
+                </div>
+            </div>
+
+        </div>
+
+        <!-- COLUMNA 3: CONSOLA -->
+        <div class="panel" style="padding:0; background:transparent; border:none;">
+            <div class="console" id="console">
+                <div class="log-line info">// Cloud Shell — Apache Kafka Streaming Pipeline</div>
+                <div class="log-line info">// Presiona "T1 · Setup Kafka" para comenzar</div>
+            </div>
+        </div>
+
+    </div>
+
+    <div class="score-bar">
+        <div class="score-item"><i class="fa-solid fa-star"></i> Score:</div>
+        <div class="score-item"><span class="score-val" id="scoreVal">0</span> / 100</div>
+        <div class="score-item" style="margin-left:auto; color:var(--muted); font-size:0.75rem;">
+            <i class="fa-solid fa-clock"></i> Lab GSP730 · 45 min
+        </div>
+    </div>
+
+    <script>
+        const consoleEl = document.getElementById('console');
+        const wait = (ms) => new Promise(r => setTimeout(r, ms));
+        let score = 0;
+        const projectId = 'qwiklabs-gcp-02-xxxxx';
+        const zone = 'us-central1-f';
+
+        function log(text, type = 'info') {
+            const div = document.createElement('div');
+            div.className = `log-line ${type}`;
+            div.innerHTML = text;
+            consoleEl.appendChild(div);
+            consoleEl.scrollTop = consoleEl.scrollHeight;
+        }
+
+        function clearConsole() {
+            consoleEl.innerHTML = '<div class="log-line info">// Consola reiniciada</div>';
+        }
+
+        function addScore(pts) {
+            score += pts;
+            document.getElementById('scoreVal').textContent = score;
+        }
+
+        function markResource(res, detail, status) {
+            const el = document.querySelector(`.resource-item[data-res="${res}"]`);
+            if (!el) return;
+            el.classList.add('used');
+            if (detail) {
+                const d = el.querySelector('.detail');
+                if (d) d.textContent = detail;
+            }
+            if (status) {
+                const s = el.querySelector('.status');
+                if (s) s.textContent = status;
+            }
+        }
+
+        // ==========================================================
+        // TASK 1: SETUP KAFKA
+        // ==========================================================
+        async function runTask1() {
+            document.getElementById('btnTask1').disabled = true;
+            clearConsole();
+            document.getElementById('stageVM').classList.add('active');
+
+            log('// Task 1: Setup Kafka VM', 'info');
+            log('$ gcloud compute firewall-rules create allow-iap-ssh \\', 'cmd');
+            await wait(200);
+            log('    --direction=INGRESS --priority=1000 --network=default \\', 'cmd');
+            await wait(200);
+            log('    --action=ALLOW --rules=tcp:22 --source-ranges=35.235.240.0/20 \\', 'cmd');
+            await wait(200);
+            log('    --target-tags=iap-gce', 'cmd');
+            await wait(900);
+            log('Creating firewall rule allow-iap-ssh...', 'info');
+            await wait(500);
+            log('✓ Firewall rule creada.', 'success');
+            markResource('firewall', 'allow-iap-ssh (tcp:22)', '✓ creada');
+            await wait(400);
+
+            log('', 'info');
+            log('// Marketplace > Apache Kafka Server on Ubuntu 24.04', 'info');
+            await wait(600);
+            log('  Service account: apache-kafka', 'key');
+            log('  Zone: ' + zone, 'key');
+            log('  Machine: e2-medium', 'key');
+            await wait(800);
+            log('✓ Deployment iniciado...', 'success');
+            await wait(1000);
+            log('✓ VM kafka-1-vm RUNNING.', 'success');
+            markResource('vm', 'kafka-1-vm (e2-medium)', '✓ RUNNING');
+            await wait(400);
+
+            const vmCard = document.getElementById('vmCard');
+            vmCard.classList.add('show');
+            await wait(500);
+
+            log('', 'info');
+            log('$ gcloud compute instances add-tags kafka-1-vm --tags=iap-gce --zone=' + zone, 'cmd');
+            await wait(700);
+            log('Updated [' + zone + '/kafka-1-vm].', 'success');
+            markResource('tag', 'iap-gce', '✓ aplicado');
+            await wait(400);
+
+            log('', 'info');
+            log('// SSH al VM y arrancar Kafka', 'info');
+            log('$ cd /opt/kafka/', 'cmd');
+            await wait(300);
+            log('$ KAFKA_CLUSTER_ID="$(bin/kafka-storage.sh random-uuid)"', 'cmd');
+            await wait(400);
+            log('$ sudo bin/kafka-storage.sh format --standalone -t $KAFKA_CLUSTER_ID -c config/server.properties', 'cmd');
+            await wait(700);
+            log('Formatting metadata directory...', 'info');
+            await wait(500);
+            log('$ sudo bin/kafka-server-start.sh config/server.properties', 'cmd');
+            await wait(1000);
+            log('Kafka Server started.', 'kafka');
+            markResource('broker', 'localhost:9092', '✓ running');
+            await wait(400);
+
+            addScore(20);
+            document.getElementById('btnTask1').classList.add('done');
+            document.getElementById('btnTask2').disabled = false;
+            document.getElementById('btnTask2').classList.add('active');
+        }
+
+        // ==========================================================
+        // TASK 2: PREPARE TOPICS AND INPUT DATA
+        // ==========================================================
+        async function runTask2() {
+            document.getElementById('btnTask2').disabled = true;
+            document.getElementById('stageTopics').classList.add('active');
+
+            log('', 'info');
+            log('// Task 2: Crear topics y enviar data', 'info');
+            log('$ cd /opt/kafka/', 'cmd');
+            await wait(300);
+            log('$ sudo bin/kafka-topics.sh --create \\', 'cmd');
+            await wait(150);
+            log('    --bootstrap-server localhost:9092 \\', 'cmd');
+            await wait(150);
+            log('    --replication-factor 1 --partitions 1 \\', 'cmd');
+            await wait(150);
+            log('    --topic streams-plaintext-input', 'cmd');
+            await wait(900);
+            log('Created topic streams-plaintext-input.', 'success');
+            markResource('topicin', 'streams-plaintext-input', '✓ creado');
+            await wait(400);
+
+            log('', 'info');
+            log('$ sudo bin/kafka-topics.sh --create \\', 'cmd');
+            await wait(150);
+            log('    --bootstrap-server localhost:9092 \\', 'cmd');
+            await wait(150);
+            log('    --replication-factor 1 --partitions 1 \\', 'cmd');
+            await wait(150);
+            log('    --topic streams-wordcount-output', 'cmd');
+            await wait(900);
+            log('Created topic streams-wordcount-output.', 'success');
+            markResource('topicout', 'streams-wordcount-output', '✓ creado');
+
+            // Mostrar topics
+            const topicsVisual = document.getElementById('topicsVisual');
+            topicsVisual.classList.add('show');
+            const topicItems = document.getElementById('topicItems');
+            const topics = [
+                { icon: 'fa-arrow-right-to-bracket', name: 'streams-plaintext-input', meta: 'partitions=1, RF=1' },
+                { icon: 'fa-arrow-right-from-bracket', name: 'streams-wordcount-output', meta: 'partitions=1, RF=1' }
+            ];
+            for (const t of topics) {
+                const div = document.createElement('div');
+                div.className = 'topic-item';
+                div.innerHTML = `<i class="fa-solid ${t.icon}"></i><span class="topic-name">${t.name}</span><span class="topic-meta">${t.meta}</span>`;
+                topicItems.appendChild(div);
+                await wait(300);
+            }
+            await wait(400);
+
+            log('', 'info');
+            log('$ echo -e "all streams lead to kafka\\nhello kafka streams\\njoin kafka summit" > /tmp/file-input.txt', 'cmd');
+            await wait(600);
+            log('✓ /tmp/file-input.txt creado (3 líneas).', 'success');
+            markResource('input', '/tmp/file-input.txt (3 lines)', '✓ creado');
+            await wait(400);
+
+            log('', 'info');
+            log('$ cat /tmp/file-input.txt | sudo bin/kafka-console-producer.sh \\', 'cmd');
+            await wait(150);
+            log('    --bootstrap-server localhost:9092 \\', 'cmd');
+            await wait(150);
+            log('    --topic streams-plaintext-input', 'cmd');
+            await wait(800);
+            log('> message sent', 'kafka');
+            await wait(300);
+
+            // Mostrar mensajes enviados
+            const inputMessages = document.getElementById('inputMessages');
+            inputMessages.classList.add('show');
+            const inputMsgList = document.getElementById('inputMsgList');
+            const inputLines = [
+                'all streams lead to kafka',
+                'hello kafka streams',
+                'join kafka summit'
+            ];
+            for (const line of inputLines) {
+                const div = document.createElement('div');
+                div.className = 'msg-line';
+                div.innerHTML = `<span class="arrow">></span> <span class="val">${line}</span>`;
+                inputMsgList.appendChild(div);
+                log('  → ' + line, 'kafka');
+                await wait(400);
+            }
+
+            await wait(400);
+            addScore(20);
+            document.getElementById('btnTask2').classList.add('done');
+            document.getElementById('btnTask3').disabled = false;
+            document.getElementById('btnTask3').classList.add('active');
+        }
+
+        // ==========================================================
+        // TASK 3: PROCESS WITH KAFKA STREAMS
+        // ==========================================================
+        async function runTask3() {
+            document.getElementById('btnTask3').disabled = true;
+            document.getElementById('stageStreams').classList.add('active');
+            document.getElementById('javaEditor').classList.add('show');
+
+            // Mostrar código Java
+            const javaEditor = document.getElementById('javaEditor');
+            const lines = [
+                { t: '// Serializers/deserializers for String and Long', c: 'c-comment' },
+                { t: 'final Serde<String> stringSerde = Serdes.String();', c: '' },
+                { t: 'final Serde<Long> longSerde = Serdes.Long();', c: '' },
+                { t: '', c: '' },
+                { t: '// KStream from input topic', c: 'c-comment' },
+                { t: 'KStream<String, String> textLines = builder.stream(', c: '' },
+                { t: '    "streams-plaintext-input", Consumed.with(stringSerde, stringSerde));', c: 'c-string' },
+                { t: '', c: '' },
+                { t: 'KTable<String, Long> wordCounts = textLines', c: 'c-var' },
+                { t: '    // Split lines by whitespace, lowercase', c: 'c-comment' },
+                { t: '    .flatMapValues(value ->', c: 'c-func' },
+                { t: '        Arrays.asList(value.toLowerCase().split("\\\\W+")))', c: 'c-string' },
+                { t: '    // Group by word (key)', c: 'c-comment' },
+                { t: '    .groupBy((key, value) -> value)', c: 'c-func' },
+                { t: '    // Count occurrences', c: 'c-comment' },
+                { t: '    .count();', c: 'c-func' },
+                { t: '', c: '' },
+                { t: '// Write to output topic', c: 'c-comment' },
+                { t: 'wordCounts.toStream()', c: '' },
+                { t: '    .to("streams-wordcount-output",', c: 'c-string' },
+                { t: '        Produced.with(stringSerde, longSerde));', c: '' }
+            ];
+            for (const line of lines) {
+                const div = document.createElement('div');
+                div.className = 'code-line ' + line.c;
+                div.textContent = line.t || '\u00A0';
+                javaEditor.appendChild(div);
+                await wait(40);
+            }
+            await wait(500);
+
+            log('', 'info');
+            log('// Task 3: Ejecutar WordCountDemo', 'info');
+            log('$ cd /opt/kafka/', 'cmd');
+            await wait(300);
+            log('$ sudo bin/kafka-run-class.sh \\', 'cmd');
+            await wait(150);
+            log('    org.apache.kafka.streams.examples.wordcount.WordCountDemo', 'cmd');
+            await wait(1000);
+            log('WARN: (warnings genéricos, ignorar)', 'warn');
+            await wait(500);
+            log('WordCountDemo started.', 'stream');
+            await wait(400);
+
+            // Mostrar nodos del pipeline
+            const nodes = ['producer', 'topicin', 'streams', 'topicout', 'consumer'];
+            for (let i = 0; i < nodes.length; i++) {
+                document.querySelector(`[data-pnode="${nodes[i]}"]`).classList.add('show');
+                await wait(400);
+                const arrow = document.querySelector(`[data-parrow="${i+1}"]`);
+                if (arrow) arrow.classList.add('show');
+                await wait(100);
+            }
+
+            // Flechas flowing
+            for (let i = 1; i <= 4; i++) {
+                document.querySelector(`[data-parrow="${i}"]`).classList.add('flowing');
+            }
+
+            // Contadores iniciales
+            const counts = { producer: '3 msgs', topicin: '3 msgs', streams: '11 outputs', topicout: '11 msgs', consumer: '11 read' };
+            for (const [key, val] of Object.entries(counts)) {
+                const el = document.querySelector(`[data-count="${key}"]`);
+                if (el) el.textContent = val;
+                await wait(200);
+            }
+
+            markResource('app', 'WordCountDemo', '✓ running');
+            await wait(400);
+
+            addScore(25);
+            document.getElementById('btnTask3').classList.add('done');
+            document.getElementById('btnTask4').disabled = false;
+            document.getElementById('btnTask4').classList.add('active');
+        }
+
+        // ==========================================================
+        // TASK 4: INSPECT OUTPUT DATA
+        // ==========================================================
+        async function runTask4() {
+            document.getElementById('btnTask4').disabled = true;
+            document.getElementById('stageOutput').classList.add('active');
+
+            log('', 'info');
+            log('// Task 4: Inspeccionar output del WordCount', 'info');
+            log('$ sudo bin/kafka-console-consumer.sh \\', 'cmd');
+            await wait(150);
+            log('    --bootstrap-server localhost:9092 \\', 'cmd');
+            await wait(150);
+            log('    --topic streams-wordcount-output \\', 'cmd');
+            await wait(150);
+            log('    --from-beginning \\', 'cmd');
+            await wait(150);
+            log('    --property print.key=true \\', 'cmd');
+            await wait(150);
+            log('    --property key.deserializer=StringDeserializer \\', 'cmd');
+            await wait(150);
+            log('    --property value.deserializer=LongDeserializer', 'cmd');
+            await wait(1000);
+
+            const wordcountOutput = document.getElementById('wordcountOutput');
+            wordcountOutput.classList.add('show');
+            const wcRows = document.getElementById('wcRows');
+
+            // Output según el lab (changelog stream)
+            const outputData = [
+                { word: 'all', count: 1, updated: false },
+                { word: 'streams', count: 1, updated: false },
+                { word: 'lead', count: 1, updated: false },
+                { word: 'to', count: 1, updated: false },
+                { word: 'kafka', count: 1, updated: false },
+                { word: 'hello', count: 1, updated: false },
+                { word: 'kafka', count: 2, updated: true },
+                { word: 'streams', count: 2, updated: true },
+                { word: 'join', count: 1, updated: false },
+                { word: 'kafka', count: 3, updated: true },
+                { word: 'summit', count: 1, updated: false }
+            ];
+
+            // Simular mapa de contadores (última emisión por palabra)
+            let wcEntries = 0;
+            for (const item of outputData) {
+                wcEntries++;
+                const div = document.createElement('div');
+                div.className = 'wc-row' + (item.updated ? ' updated' : '');
+                const badge = item.updated ? '<span class="update-badge">↑ update</span>' : '';
+                div.innerHTML = `<span class="word">${item.word}${badge}</span><span class="count-num">${item.count}</span>`;
+                wcRows.appendChild(div);
+                log(`  ${item.word}\t${item.count}`, 'stream');
+                await wait(280);
+            }
+
+            document.getElementById('wcCount').textContent = wcEntries + ' entries';
+            await wait(500);
+
+            log('', 'info');
+            log('// Primera columna = key (String), segunda = value (Long)', 'info');
+            log('// Es el changelog stream de un KTable', 'key');
+            log('// Palabras con updates: kafka (1→2→3), streams (1→2)', 'key');
+            await wait(500);
+
+            addScore(25);
+            document.getElementById('btnTask4').classList.add('done');
+            document.getElementById('btnTask5').disabled = false;
+            document.getElementById('btnTask5').classList.add('active');
+        }
+
+        // ==========================================================
+        // TASK 5: STOP THE KAFKA CLUSTER
+        // ==========================================================
+        async function runTask5() {
+            document.getElementById('btnTask5').disabled = true;
+            document.getElementById('stageShutdown').classList.add('active');
+
+            log('', 'info');
+            log('// Task 5: Shutdown del cluster Kafka', 'info');
+            await wait(500);
+
+            const shutdownBox = document.getElementById('shutdownBox');
+            shutdownBox.classList.add('show');
+            const shutdownItems = document.getElementById('shutdownItems');
+            const items = [
+                { cmd: 'Ctrl+C en terminal del broker', desc: 'Stop kafka-server-start.sh' },
+                { cmd: 'Ctrl+C en consumer', desc: 'Stop kafka-console-consumer.sh' },
+                { cmd: 'Ctrl+C en WordCountDemo', desc: 'Stop Kafka Streams app' },
+                { cmd: '(opcional) Delete VM desde Console', desc: 'Libera recursos de Compute Engine' }
+            ];
+
+            for (const item of items) {
+                log('$ ' + item.cmd, 'cmd');
+                const div = document.createElement('div');
+                div.className = 'shutdown-item';
+                div.innerHTML = `<i class="fa-solid fa-power-off"></i><span>${item.desc}</span><span class="done">✓</span>`;
+                shutdownItems.appendChild(div);
+                await wait(600);
+            }
+
+            await wait(500);
+            log('✓ Kafka broker detenido.', 'success');
+            log('✓ Cluster shutdown completo.', 'success');
+
+            addScore(10);
+
+            log('', 'info');
+            log('=== LAB COMPLETADO ===', 'success');
+            log('Score final: ' + score + ' / 100', 'success');
+            log('Pipeline streaming: Producer → streams-plaintext-input', 'info');
+            log('→ WordCountDemo (Kafka Streams) → streams-wordcount-output → Consumer', 'info');
+            log('WordCount final: kafka=3, streams=2, all=1, lead=1, to=1, hello=1, join=1, summit=1', 'key');
+
+            document.getElementById('btnTask5').classList.add('done');
+        }
+
+        // ==========================================================
+        // RESET
+        // ==========================================================
+        function resetAll() {
+            score = 0;
+            document.getElementById('scoreVal').textContent = '0';
+
+            document.querySelectorAll('.resource-item').forEach(el => {
+                el.classList.remove('used');
+                const s = el.querySelector('.status');
+                if (s) s.textContent = '';
+            });
+
+            document.querySelector('[data-res="firewall"] .detail').textContent = 'allow-iap-ssh (tcp:22)';
+            document.querySelector('[data-res="vm"] .detail').textContent = 'kafka-1-vm (e2-medium)';
+            document.querySelector('[data-res="tag"] .detail').textContent = 'iap-gce';
+            document.querySelector('[data-res="broker"] .detail').textContent = 'localhost:9092';
+            document.querySelector('[data-res="topicin"] .detail').textContent = 'streams-plaintext-input';
+            document.querySelector('[data-res="topicout"] .detail').textContent = 'streams-wordcount-output';
+            document.querySelector('[data-res="input"] .detail').textContent = '/tmp/file-input.txt (3 lines)';
+            document.querySelector('[data-res="app"] .detail').textContent = 'Kafka Streams app';
+
+            document.querySelectorAll('.stage-card').forEach(el => el.classList.remove('active'));
+            document.querySelectorAll('.pipeline-node').forEach(el => el.classList.remove('show'));
+            document.querySelectorAll('.pipeline-arrow').forEach(el => el.classList.remove('show', 'flowing'));
+            document.querySelectorAll('.count').forEach(el => el.textContent = '');
+
+            document.getElementById('vmCard').classList.remove('show');
+            document.getElementById('topicsVisual').classList.remove('show');
+            document.getElementById('topicItems').innerHTML = '';
+            document.getElementById('inputMessages').classList.remove('show');
+            document.getElementById('inputMsgList').innerHTML = '';
+            document.getElementById('javaEditor').classList.remove('show');
+            document.getElementById('javaEditor').innerHTML = '<div class="c-filename">WordCountLambdaExample.java</div>';
+            document.getElementById('wordcountOutput').classList.remove('show');
+            document.getElementById('wcRows').innerHTML = '';
+            document.getElementById('wcCount').textContent = '0 entries';
+            document.getElementById('shutdownBox').classList.remove('show');
+            document.getElementById('shutdownItems').innerHTML = '';
+
+            ['btnTask1','btnTask2','btnTask3','btnTask4','btnTask5'].forEach(id => {
+                const btn = document.getElementById(id);
+                btn.disabled = (id !== 'btnTask1');
+                btn.classList.remove('active', 'done');
+            });
+            document.getElementById('btnTask1').disabled = false;
+
+            clearConsole();
+        }
+    </script>
+</body>
+</html>

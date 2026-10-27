@@ -1,0 +1,1111 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Lab GSP903: Stream Processing Pub/Sub + Dataflow</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        :root {
+            --bg: #0b1120;
+            --panel: #1e293b;
+            --panel-2: #334155;
+            --text: #f1f5f9;
+            --muted: #94a3b8;
+            --accent: #4285f4;
+            --gcp-yellow: #fbbc04;
+            --gcp-green: #34a853;
+            --gcp-red: #ea4335;
+            --beam: #ff6d00;
+            --pubsub: #7c3aed;
+            --gcs: #fbbc04;
+            --scheduler: #4285f4;
+            --border: #334155;
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+
+        body {
+            font-family: 'Segoe UI', Roboto, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            min-height: 100vh;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        header { text-align: center; margin-bottom: 20px; max-width: 920px; }
+        h1 { font-size: 1.4rem; font-weight: 300; letter-spacing: 1px; margin-bottom: 8px; }
+        h1 i { color: var(--beam); }
+        p.subtitle { color: var(--muted); font-size: 0.88rem; }
+        p.subtitle code { color: var(--gcp-yellow); background: var(--panel); padding: 2px 6px; border-radius: 4px; }
+
+        .controls {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+
+        .btn {
+            padding: 10px 14px;
+            border: 2px solid var(--border);
+            background: var(--panel);
+            color: var(--text);
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 0.78rem;
+            font-weight: 600;
+            transition: all 0.25s;
+            display: flex;
+            align-items: center;
+            gap: 7px;
+        }
+
+        .btn:hover:not(:disabled) { transform: translateY(-2px); border-color: var(--beam); }
+        .btn:disabled { opacity: 0.35; cursor: not-allowed; }
+        .btn.active { border-color: var(--beam); background: rgba(255,109,0,0.15); box-shadow: 0 0 15px rgba(255,109,0,0.2); }
+        .btn.done { border-color: var(--gcp-green); background: rgba(52,168,83,0.12); color: var(--gcp-green); }
+
+        .btn i { font-size: 0.92rem; }
+
+        .workspace {
+            display: grid;
+            grid-template-columns: 290px 1fr 370px;
+            gap: 18px;
+            width: 100%;
+            max-width: 1620px;
+            align-items: start;
+        }
+
+        .panel {
+            background: var(--panel);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 16px;
+        }
+
+        .panel-title {
+            font-size: 0.72rem;
+            text-transform: uppercase;
+            letter-spacing: 1.5px;
+            color: var(--muted);
+            margin-bottom: 14px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .resource-item {
+            background: var(--panel-2);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 9px 11px;
+            font-size: 0.73rem;
+            font-family: 'Courier New', monospace;
+            color: var(--muted);
+            display: flex;
+            flex-direction: column;
+            gap: 3px;
+            margin-bottom: 7px;
+            transition: all 0.4s ease;
+            opacity: 0.45;
+        }
+
+        .resource-item.used {
+            opacity: 1;
+            border-color: var(--beam);
+            color: var(--text);
+            background: rgba(255,109,0,0.08);
+        }
+
+        .resource-item .name { display: flex; align-items: center; gap: 6px; }
+        .resource-item .name i { font-size: 0.82rem; }
+        .resource-item .detail { font-size: 0.64rem; color: var(--beam); font-weight: bold; word-break: break-all; }
+        .resource-item .status { font-size: 0.62rem; color: var(--gcp-green); }
+
+        .canvas {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+
+        .stage-card {
+            background: var(--panel);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 16px;
+            opacity: 0.3;
+            transform: translateY(8px);
+            transition: all 0.5s ease;
+        }
+
+        .stage-card.active {
+            opacity: 1;
+            transform: translateY(0);
+            border-color: var(--beam);
+            box-shadow: 0 0 25px rgba(255,109,0,0.12);
+        }
+
+        .stage-card h2 {
+            font-size: 0.92rem;
+            margin-bottom: 12px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .stage-card h2 .tag {
+            font-size: 0.58rem;
+            padding: 3px 8px;
+            border-radius: 10px;
+            background: var(--panel-2);
+            color: var(--muted);
+            font-family: monospace;
+            margin-left: auto;
+        }
+
+        /* Code editor */
+        .code-editor {
+            display: none;
+            background: #0d1117;
+            border-radius: 8px;
+            padding: 12px;
+            font-family: 'Courier New', monospace;
+            font-size: 0.63rem;
+            border: 1px solid var(--border);
+            margin-top: 8px;
+            max-height: 340px;
+            overflow-y: auto;
+            line-height: 1.55;
+        }
+        .code-editor.show { display: block; animation: fadeIn 0.4s ease; }
+        .code-line { white-space: pre; }
+        .c-comment { color: #6a9955; }
+        .c-keyword { color: #c586c0; }
+        .c-string { color: #ce9178; }
+        .c-func { color: #dcdcaa; }
+        .c-var { color: #9cdcfe; }
+        .c-num { color: #b5cea8; }
+        .c-filename {
+            color: var(--gcp-yellow);
+            font-weight: bold;
+            display: block;
+            margin-bottom: 6px;
+            padding-bottom: 4px;
+            border-bottom: 1px solid var(--border);
+        }
+        .code-tabs {
+            display: flex;
+            gap: 4px;
+            margin-bottom: 8px;
+        }
+        .code-tab {
+            padding: 4px 10px;
+            border-radius: 4px 4px 0 0;
+            background: var(--panel-2);
+            color: var(--muted);
+            font-size: 0.65rem;
+            font-family: monospace;
+            cursor: pointer;
+            border: 1px solid var(--border);
+            border-bottom: none;
+        }
+        .code-tab.active {
+            background: var(--beam);
+            color: white;
+            border-color: var(--beam);
+        }
+
+        /* Pipeline visual */
+        .pipeline-visual {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 5px;
+            padding: 15px 0;
+            flex-wrap: wrap;
+            position: relative;
+        }
+
+        .pipeline-node {
+            flex: 1;
+            min-width: 100px;
+            text-align: center;
+            padding: 12px 8px;
+            border-radius: 10px;
+            font-size: 0.67rem;
+            font-weight: 600;
+            border: 2px solid var(--border);
+            background: var(--panel-2);
+            color: var(--muted);
+            opacity: 0;
+            transform: scale(0.85);
+            transition: all 0.5s ease;
+            position: relative;
+        }
+
+        .pipeline-node.show { opacity: 1; transform: scale(1); }
+        .pipeline-node.source { border-color: var(--pubsub); color: #c4b5fd; background: rgba(124,58,237,0.1); }
+        .pipeline-node.window { border-color: var(--beam); color: #fdba74; background: rgba(255,109,0,0.1); }
+        .pipeline-node.sink { border-color: var(--gcs); color: #fde68a; background: rgba(251,188,4,0.1); }
+        .pipeline-node.running { animation: pulseBorder 2s infinite; }
+
+        .pipeline-node .sub { display: block; font-size: 0.55rem; font-weight: normal; color: var(--muted); margin-top: 3px; font-family: monospace; }
+        .pipeline-node .count {
+            display: block;
+            font-size: 0.62rem;
+            color: var(--gcp-green);
+            margin-top: 4px;
+            font-weight: bold;
+            font-family: monospace;
+        }
+
+        .pipeline-arrow {
+            color: var(--border);
+            font-size: 1rem;
+            opacity: 0;
+            transition: opacity 0.4s ease;
+        }
+        .pipeline-arrow.show { opacity: 1; color: var(--beam); }
+        .pipeline-arrow.flowing { color: var(--gcp-green); animation: pulse 1s infinite; }
+
+        @keyframes pulseBorder {
+            0%, 100% { box-shadow: 0 0 0 0 rgba(255,109,0,0.4); }
+            50% { box-shadow: 0 0 0 8px rgba(255,109,0,0); }
+        }
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        /* Job progress */
+        .job-progress {
+            display: none;
+            margin-top: 10px;
+            background: var(--panel-2);
+            border-radius: 8px;
+            padding: 12px;
+        }
+        .job-progress.show { display: block; }
+        .progress-step {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-size: 0.68rem;
+            padding: 4px 0;
+            color: var(--muted);
+            font-family: monospace;
+        }
+        .progress-step .dot {
+            width: 9px; height: 9px;
+            border-radius: 50%;
+            background: var(--border);
+            flex-shrink: 0;
+            transition: all 0.3s;
+        }
+        .progress-step.ok .dot { background: var(--gcp-green); box-shadow: 0 0 8px var(--gcp-green); }
+        .progress-step.ok { color: var(--text); }
+        .progress-step.running .dot { background: var(--beam); animation: pulse 1s infinite; }
+        .progress-step.running { color: var(--beam); }
+
+        /* GCS files */
+        .gcs-files {
+            display: none;
+            background: #0d1117;
+            border-radius: 8px;
+            padding: 12px;
+            border: 1px solid var(--gcs);
+            margin-top: 8px;
+            font-family: 'Courier New', monospace;
+            font-size: 0.65rem;
+        }
+        .gcs-files.show { display: block; animation: fadeIn 0.4s ease; }
+        .gcs-header {
+            color: var(--gcs);
+            font-size: 0.65rem;
+            margin-bottom: 8px;
+            padding-bottom: 6px;
+            border-bottom: 1px solid rgba(251,188,4,0.3);
+            display: flex;
+            justify-content: space-between;
+        }
+        .gcs-file {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 4px 6px;
+            margin-bottom: 3px;
+            border-radius: 4px;
+            background: rgba(251,188,4,0.05);
+            border-left: 3px solid var(--gcs);
+            opacity: 0;
+            animation: fadeIn 0.3s ease forwards;
+        }
+        .gcs-file i { color: var(--gcs); font-size: 0.7rem; }
+        .gcs-file .filename { color: #93c5fd; flex: 1; }
+        .gcs-file .size { color: var(--muted); font-size: 0.58rem; }
+
+        /* Scheduler visual */
+        .scheduler-visual {
+            display: none;
+            background: #0d1117;
+            border-radius: 8px;
+            padding: 12px;
+            border: 1px solid var(--scheduler);
+            margin-top: 8px;
+        }
+        .scheduler-visual.show { display: block; animation: fadeIn 0.4s ease; }
+        .sched-header {
+            color: var(--scheduler);
+            font-size: 0.65rem;
+            margin-bottom: 8px;
+            padding-bottom: 6px;
+            border-bottom: 1px solid rgba(66,133,244,0.3);
+            display: flex;
+            justify-content: space-between;
+        }
+        .sched-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 3px 0;
+            font-size: 0.64rem;
+            font-family: 'Courier New', monospace;
+            border-bottom: 1px solid rgba(51,65,85,0.3);
+        }
+        .sched-row:last-child { border-bottom: none; }
+        .sched-row .k { color: var(--muted); }
+        .sched-row .v { color: var(--gcp-yellow); font-weight: bold; }
+
+        /* Cleanup visual */
+        .cleanup-box {
+            display: none;
+            background: #1a0a0a;
+            border-radius: 8px;
+            padding: 12px;
+            border: 1px solid var(--gcp-red);
+            margin-top: 8px;
+            font-family: 'Courier New', monospace;
+            font-size: 0.65rem;
+        }
+        .cleanup-box.show { display: block; animation: fadeIn 0.4s ease; }
+        .cleanup-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 4px 0;
+            opacity: 0;
+            animation: fadeIn 0.3s ease forwards;
+        }
+        .cleanup-item i { color: var(--gcp-red); }
+        .cleanup-item .done { color: var(--gcp-green); margin-left: auto; font-size: 0.6rem; }
+
+        .console {
+            font-family: 'Courier New', monospace;
+            font-size: 0.69rem;
+            background: #000;
+            border-radius: 8px;
+            padding: 14px;
+            height: 100%;
+            min-height: 500px;
+            max-height: 940px;
+            overflow-y: auto;
+            border: 1px solid var(--border);
+        }
+
+        .log-line { margin-bottom: 5px; line-height: 1.45; animation: fadeIn 0.3s ease; word-wrap: break-word; }
+        .log-line.cmd { color: var(--gcp-green); font-weight: bold; }
+        .log-line.info { color: var(--muted); }
+        .log-line.success { color: var(--gcp-green); }
+        .log-line.warn { color: var(--gcp-yellow); }
+        .log-line.error { color: var(--gcp-red); }
+        .log-line.key { color: #93c5fd; }
+        .log-line.beam { color: var(--beam); }
+        .log-line.pubsub { color: #c4b5fd; }
+        .log-line.gcs { color: var(--gcs); }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateX(-5px); }
+            to { opacity: 1; transform: translateX(0); }
+        }
+
+        @media (max-width: 1250px) {
+            .workspace { grid-template-columns: 1fr; }
+            .pipeline-visual { flex-wrap: wrap; }
+            .pipeline-arrow { display: none; }
+        }
+
+        .score-bar {
+            margin-top: 20px;
+            display: flex;
+            gap: 20px;
+            align-items: center;
+            background: var(--panel);
+            padding: 12px 24px;
+            border-radius: 10px;
+            border: 1px solid var(--border);
+            font-size: 0.85rem;
+        }
+        .score-bar .score-item { display: flex; align-items: center; gap: 8px; }
+        .score-bar .score-item i { color: var(--gcp-yellow); }
+        .score-bar .score-val { color: var(--gcp-green); font-weight: bold; font-family: monospace; }
+    </style>
+</head>
+<body>
+
+    <header>
+        <h1><i class="fa-solid fa-water"></i> Stream Processing with Pub/Sub and Dataflow: Qwik Start</h1>
+        <p class="subtitle">Lab GSP903 · Pub/Sub → Dataflow (FixedWindows) → Cloud Storage · Región: <code>us-central1</code></p>
+    </header>
+
+    <div class="controls">
+        <button class="btn" id="btnTask1" onclick="runTask1()"><i class="fa-solid fa-cubes"></i> T1 · Recursos</button>
+        <button class="btn" id="btnTask2" onclick="runTask2()" disabled><i class="fa-solid fa-code"></i> T2 · Código Beam</button>
+        <button class="btn" id="btnTask3" onclick="runTask3()" disabled><i class="fa-solid fa-play"></i> T3 · Pipeline</button>
+        <button class="btn" id="btnTask4" onclick="runTask4()" disabled><i class="fa-solid fa-chart-line"></i> T4 · Observar</button>
+        <button class="btn" id="btnTask5" onclick="runTask5()" disabled><i class="fa-solid fa-broom"></i> T5 · Cleanup</button>
+        <button class="btn" id="btnReset" onclick="resetAll()" style="border-color:#ef4444;color:#fca5a5;"><i class="fa-solid fa-rotate-left"></i></button>
+    </div>
+
+    <div class="workspace">
+
+        <!-- COLUMNA 1: RECURSOS -->
+        <div class="panel">
+            <div class="panel-title"><i class="fa-solid fa-cubes"></i> Recursos del Lab</div>
+            <div id="resourceList">
+                <div class="resource-item" data-res="project">
+                    <div class="name"><i class="fa-solid fa-diagram-project" style="color:var(--accent)"></i> Project ID</div>
+                    <div class="detail">qwiklabs-gcp-02-xxxxx</div>
+                </div>
+                <div class="resource-item" data-res="api">
+                    <div class="name"><i class="fa-solid fa-plug" style="color:var(--gcp-green)"></i> Dataflow API</div>
+                    <div class="detail">dataflow.googleapis.com</div>
+                </div>
+                <div class="resource-item" data-res="bucket">
+                    <div class="name"><i class="fa-solid fa-bucket" style="color:var(--gcs)"></i> GCS Bucket</div>
+                    <div class="detail">PROJECT_ID-bucket</div>
+                    <div class="status"></div>
+                </div>
+                <div class="resource-item" data-res="topic">
+                    <div class="name"><i class="fa-solid fa-tower-broadcast" style="color:var(--pubsub)"></i> Pub/Sub Topic</div>
+                    <div class="detail">my-id</div>
+                    <div class="status"></div>
+                </div>
+                <div class="resource-item" data-res="appengine">
+                    <div class="name"><i class="fa-solid fa-globe" style="color:var(--accent)"></i> App Engine App</div>
+                    <div class="detail">region: us-central</div>
+                    <div class="status"></div>
+                </div>
+                <div class="resource-item" data-res="scheduler">
+                    <div class="name"><i class="fa-solid fa-clock" style="color:var(--scheduler)"></i> Cloud Scheduler Job</div>
+                    <div class="detail">publisher-job (* * * * *)</div>
+                    <div class="status"></div>
+                </div>
+                <div class="resource-item" data-res="repo">
+                    <div class="name"><i class="fa-brands fa-java" style="color:var(--beam)"></i> Sample Repo</div>
+                    <div class="detail">java-docs-samples/pubsub/streaming-analytics</div>
+                    <div class="status"></div>
+                </div>
+                <div class="resource-item" data-res="job">
+                    <div class="name"><i class="fa-solid fa-gears" style="color:var(--beam)"></i> Dataflow Job</div>
+                    <div class="detail">pubsubtogcs</div>
+                    <div class="status"></div>
+                </div>
+                <div class="resource-item" data-res="output">
+                    <div class="name"><i class="fa-solid fa-file-lines" style="color:var(--gcs)"></i> Output Files</div>
+                    <div class="detail">gs://bucket/samples/output-*</div>
+                    <div class="status"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- COLUMNA 2: CANVAS -->
+        <div class="canvas">
+
+            <!-- Task 1: Scheduler visual -->
+            <div class="stage-card" id="stageScheduler">
+                <h2><i class="fa-solid fa-clock" style="color:var(--scheduler)"></i> Cloud Scheduler → Pub/Sub <span class="tag">Task 1</span></h2>
+                <div class="scheduler-visual" id="schedulerVisual">
+                    <div class="sched-header">
+                        <span><i class="fa-solid fa-clock"></i> publisher-job</span>
+                        <span style="color:var(--gcp-green);">ENABLED</span>
+                    </div>
+                    <div class="sched-row"><span class="k">Schedule</span><span class="v">* * * * * (every minute)</span></div>
+                    <div class="sched-row"><span class="k">Target</span><span class="v">Pub/Sub: my-id</span></div>
+                    <div class="sched-row"><span class="k">Message body</span><span class="v">"Hello!"</span></div>
+                    <div class="sched-row"><span class="k">Region</span><span class="v">us-central1</span></div>
+                </div>
+            </div>
+
+            <!-- Task 2: Code editor -->
+            <div class="stage-card" id="stageCode">
+                <h2><i class="fa-solid fa-code" style="color:var(--beam)"></i> PubSubToGcs.java <span class="tag">Task 2</span></h2>
+                <div class="code-editor" id="codeEditor">
+                    <div class="code-tabs">
+                        <div class="code-tab active" onclick="switchLang('java')">Java</div>
+                        <div class="code-tab" onclick="switchLang('python')">Python</div>
+                    </div>
+                    <div id="codeBody"></div>
+                </div>
+            </div>
+
+            <!-- Tasks 3-4: Pipeline + Job -->
+            <div class="stage-card" id="stagePipeline">
+                <h2><i class="fa-solid fa-diagram-project" style="color:var(--beam)"></i> Dataflow Pipeline: PubSubToGcs <span class="tag">Tasks 3-4</span></h2>
+                <div class="pipeline-visual" id="pipelineVisual">
+                    <div class="pipeline-node source" data-pnode="pubsub">
+                        <i class="fa-solid fa-tower-broadcast"></i> PubsubIO
+                        <span class="sub">readStrings fromTopic(my-id)</span>
+                        <span class="count" data-count="pubsub"></span>
+                    </div>
+                    <div class="pipeline-arrow" data-parrow="1"><i class="fa-solid fa-arrow-right"></i></div>
+                    <div class="pipeline-node window" data-pnode="window">
+                        <i class="fa-solid fa-window-restore"></i> FixedWindows
+                        <span class="sub">Duration.standardMinutes(2)</span>
+                        <span class="count" data-count="window"></span>
+                    </div>
+                    <div class="pipeline-arrow" data-parrow="2"><i class="fa-solid fa-arrow-right"></i></div>
+                    <div class="pipeline-node sink" data-pnode="gcs">
+                        <i class="fa-solid fa-cloud-arrow-up"></i> WriteOneFilePerWindow
+                        <span class="sub">gs://bucket/samples/output</span>
+                        <span class="count" data-count="gcs"></span>
+                    </div>
+                </div>
+
+                <div class="job-progress" id="jobProgress">
+                    <div class="progress-step" data-step="submit"><span class="dot"></span> Job submitted: pubsubtogcs</div>
+                    <div class="progress-step" data-step="workers"><span class="dot"></span> Workers started (e2-standard-2)</div>
+                    <div class="progress-step" data-step="running"><span class="dot"></span> Streaming pipeline running</div>
+                    <div class="progress-step" data-step="windows"><span class="dot"></span> FixedWindows: 2-minute windows firing</div>
+                    <div class="progress-step" data-step="succeeded"><span class="dot"></span> Files written to GCS ✓</div>
+                </div>
+
+                <div class="gcs-files" id="gcsFiles">
+                    <div class="gcs-header">
+                        <span><i class="fa-solid fa-folder-open" style="color:var(--gcs);"></i> gs://bucket/samples/</span>
+                        <span id="fileCount">0 files</span>
+                    </div>
+                    <div id="gcsFileList"></div>
+                </div>
+            </div>
+
+            <!-- Task 5: Cleanup -->
+            <div class="stage-card" id="stageCleanup">
+                <h2><i class="fa-solid fa-broom" style="color:var(--gcp-red)"></i> Cleanup <span class="tag">Task 5</span></h2>
+                <div class="cleanup-box" id="cleanupBox">
+                    <div id="cleanupItems"></div>
+                </div>
+            </div>
+
+        </div>
+
+        <!-- COLUMNA 3: CONSOLA -->
+        <div class="panel" style="padding:0; background:transparent; border:none;">
+            <div class="console" id="console">
+                <div class="log-line info">// Cloud Shell — Stream Processing Pub/Sub + Dataflow</div>
+                <div class="log-line info">// Presiona "T1 · Recursos" para comenzar</div>
+            </div>
+        </div>
+
+    </div>
+
+    <div class="score-bar">
+        <div class="score-item"><i class="fa-solid fa-star"></i> Score:</div>
+        <div class="score-item"><span class="score-val" id="scoreVal">0</span> / 100</div>
+        <div class="score-item" style="margin-left:auto; color:var(--muted); font-size:0.75rem;">
+            <i class="fa-solid fa-clock"></i> Lab GSP903 · 25 min
+        </div>
+    </div>
+
+    <script>
+        const consoleEl = document.getElementById('console');
+        const wait = (ms) => new Promise(r => setTimeout(r, ms));
+        let score = 0;
+        const projectId = 'qwiklabs-gcp-02-xxxxx';
+        const bucketName = projectId + '-bucket';
+        const topicId = 'my-id';
+        const region = 'us-central1';
+        const zone = 'us-central1-a';
+
+        function log(text, type = 'info') {
+            const div = document.createElement('div');
+            div.className = `log-line ${type}`;
+            div.innerHTML = text;
+            consoleEl.appendChild(div);
+            consoleEl.scrollTop = consoleEl.scrollHeight;
+        }
+
+        function clearConsole() {
+            consoleEl.innerHTML = '<div class="log-line info">// Consola reiniciada</div>';
+        }
+
+        function addScore(pts) {
+            score += pts;
+            document.getElementById('scoreVal').textContent = score;
+        }
+
+        function markResource(res, detail, status) {
+            const el = document.querySelector(`.resource-item[data-res="${res}"]`);
+            if (!el) return;
+            el.classList.add('used');
+            if (detail) {
+                const d = el.querySelector('.detail');
+                if (d) d.textContent = detail;
+            }
+            if (status) {
+                const s = el.querySelector('.status');
+                if (s) s.textContent = status;
+            }
+        }
+
+        // ==========================================================
+        // TASK 1: CREATE PROJECT RESOURCES
+        // ==========================================================
+        async function runTask1() {
+            document.getElementById('btnTask1').disabled = true;
+            clearConsole();
+
+            log('// Task 1: Crear recursos del proyecto', 'info');
+            log('$ gcloud config set compute/region ' + region, 'cmd');
+            await wait(500);
+            log('Updated property [compute/region].', 'success');
+            await wait(400);
+
+            log('', 'info');
+            log('$ gcloud services disable dataflow.googleapis.com --force', 'cmd');
+            await wait(700);
+            log('Operation finished successfully.', 'info');
+            log('$ gcloud services enable dataflow.googleapis.com', 'cmd');
+            await wait(900);
+            log('Operation finished successfully.', 'success');
+            markResource('api', 'dataflow.googleapis.com', '✓ habilitada');
+            await wait(400);
+
+            log('', 'info');
+            log('$ PROJECT_ID=$(gcloud config get-value project)', 'cmd');
+            await wait(300);
+            log('$ BUCKET_NAME="${PROJECT_ID}-bucket"', 'cmd');
+            await wait(200);
+            log('$ TOPIC_ID=my-id', 'cmd');
+            await wait(300);
+            log('  PROJECT_ID=' + projectId, 'key');
+            log('  BUCKET_NAME=' + bucketName, 'key');
+            log('  TOPIC_ID=' + topicId, 'key');
+            await wait(500);
+
+            log('', 'info');
+            log('$ gcloud storage buckets create gs://$BUCKET_NAME', 'cmd');
+            await wait(1000);
+            log('Creating gs://' + bucketName + '/...', 'info');
+            await wait(500);
+            log('✓ Bucket creado.', 'success');
+            markResource('bucket', 'gs://' + bucketName, '✓ creado');
+            await wait(400);
+
+            log('', 'info');
+            log('$ gcloud pubsub topics create $TOPIC_ID', 'cmd');
+            await wait(800);
+            log('Created topic [projects/' + projectId + '/topics/' + topicId + '].', 'success');
+            markResource('topic', topicId, '✓ creado');
+            await wait(400);
+
+            log('', 'info');
+            log('$ gcloud app create --region=us-central', 'cmd');
+            await wait(1000);
+            log('Creating App Engine application...', 'info');
+            await wait(700);
+            log('✓ App Engine app creada en us-central.', 'success');
+            markResource('appengine', 'region: us-central', '✓ creada');
+            await wait(400);
+
+            log('', 'info');
+            log('$ gcloud scheduler jobs create pubsub publisher-job \\', 'cmd');
+            await wait(200);
+            log('    --schedule="* * * * *" --topic=$TOPIC_ID \\', 'cmd');
+            await wait(200);
+            log('    --message-body="Hello!"', 'cmd');
+            await wait(1000);
+            log('Enable Cloud Scheduler API? y', 'warn');
+            await wait(500);
+            log('✓ Job publisher-job creado.', 'success');
+            markResource('scheduler', 'publisher-job (* * * * *)', '✓ creado');
+
+            const schedulerVisual = document.getElementById('schedulerVisual');
+            schedulerVisual.classList.add('show');
+            await wait(500);
+
+            log('', 'info');
+            log('$ gcloud scheduler jobs run publisher-job', 'cmd');
+            await wait(600);
+            log('✓ Job ejecutado (publica "Hello!" al topic cada minuto).', 'success');
+            await wait(400);
+
+            log('', 'info');
+            log('$ git clone https://github.com/GoogleCloudPlatform/java-docs-samples.git', 'cmd');
+            await wait(800);
+            log('$ cd java-docs-samples/pubsub/streaming-analytics', 'cmd');
+            await wait(400);
+            log('✓ Código de ejemplo descargado.', 'success');
+            markResource('repo', 'java-docs-samples/pubsub/streaming-analytics', '✓ clonado');
+            await wait(400);
+
+            addScore(25);
+            document.getElementById('btnTask1').classList.add('done');
+            document.getElementById('btnTask2').disabled = false;
+            document.getElementById('btnTask2').classList.add('active');
+        }
+
+        // ==========================================================
+        // TASK 2: REVIEW CODE
+        // ==========================================================
+        async function runTask2() {
+            document.getElementById('btnTask2').disabled = true;
+            document.getElementById('stageCode').classList.add('active');
+            document.getElementById('codeEditor').classList.add('show');
+
+            log('', 'info');
+            log('// Task 2: Revisar código PubSubToGcs.java', 'info');
+            await wait(500);
+
+            renderJavaCode();
+            await wait(500);
+            log('// Pipeline: PubsubIO.readStrings → FixedWindows → WriteOneFilePerWindow', 'beam');
+            await wait(500);
+            log('// 1) Read string messages from Pub/Sub topic', 'info');
+            log('// 2) Group messages into fixed-size intervals (2 min)', 'info');
+            log('// 3) Write one file per window to GCS', 'info');
+            await wait(600);
+
+            addScore(15);
+            document.getElementById('btnTask2').classList.add('done');
+            document.getElementById('btnTask3').disabled = false;
+            document.getElementById('btnTask3').classList.add('active');
+        }
+
+        function renderJavaCode() {
+            const codeBody = document.getElementById('codeBody');
+            codeBody.innerHTML = '';
+            const lines = [
+                { t: 'public class PubSubToGcs {', c: '' },
+                { t: '  public interface PubSubToGcsOptions extends StreamingOptions {', c: '' },
+                { t: '    @Description("The Cloud Pub/Sub topic to read from.")', c: 'c-comment' },
+                { t: '    @Required String getInputTopic();', c: '' },
+                { t: '    @Default.Integer(1) Integer getWindowSize();', c: '' },
+                { t: '    @Required String getOutput();', c: '' },
+                { t: '  }', c: '' },
+                { t: '', c: '' },
+                { t: '  public static void main(String[] args) throws IOException {', c: 'c-func' },
+                { t: '    int numShards = 1;', c: '' },
+                { t: '    PubSubToGcsOptions options = PipelineOptionsFactory', c: '' },
+                { t: '        .fromArgs(args).withValidation()', c: '' },
+                { t: '        .as(PubSubToGcsOptions.class);', c: '' },
+                { t: '    options.setStreaming(true);', c: '' },
+                { t: '    Pipeline pipeline = Pipeline.create(options);', c: '' },
+                { t: '', c: '' },
+                { t: '    pipeline', c: '' },
+                { t: '      // 1) Read from Pub/Sub', c: 'c-comment' },
+                { t: '      .apply("Read PubSub Messages",', c: 'c-func' },
+                { t: '          PubsubIO.readStrings().fromTopic(options.getInputTopic()))', c: 'c-keyword' },
+                { t: '      // 2) Group into fixed windows', c: 'c-comment' },
+                { t: '      .apply(Window.into(FixedWindows.of(', c: 'c-func' },
+                { t: '          Duration.standardMinutes(options.getWindowSize()))))', c: 'c-keyword' },
+                { t: '      // 3) Write one file per window', c: 'c-comment' },
+                { t: '      .apply("Write Files to GCS",', c: 'c-func' },
+                { t: '          new WriteOneFilePerWindow(options.getOutput(), numShards));', c: 'c-keyword' },
+                { t: '', c: '' },
+                { t: '    pipeline.run().waitUntilFinish();', c: '' },
+                { t: '  }', c: 'c-func' },
+                { t: '}', c: '' }
+            ];
+            for (const line of lines) {
+                const div = document.createElement('div');
+                div.className = 'code-line ' + line.c;
+                div.textContent = line.t || '\u00A0';
+                codeBody.appendChild(div);
+            }
+        }
+
+        function renderPythonCode() {
+            const codeBody = document.getElementById('codeBody');
+            codeBody.innerHTML = '';
+            const lines = [
+                { t: 'import apache_beam as beam', c: '' },
+                { t: 'from apache_beam.options.pipeline_options import PipelineOptions', c: '' },
+                { t: 'from apache_beam.transforms.window import FixedWindows', c: '' },
+                { t: '', c: '' },
+                { t: 'def run():', c: 'c-func' },
+                { t: '    options = PipelineOptions(streaming=True)', c: '' },
+                { t: '', c: '' },
+                { t: '    with beam.Pipeline(options=options) as pipeline:', c: 'c-keyword' },
+                { t: '        (pipeline', c: '' },
+                { t: '         # 1) Read from Pub/Sub', c: 'c-comment' },
+                { t: '         | "Read PubSub Messages" >> beam.io.ReadFromPubSub(', c: 'c-func' },
+                { t: '             topic=f"projects/{PROJECT_ID}/topics/{TOPIC_ID}")', c: '' },
+                { t: '         # 2) Group into fixed windows', c: 'c-comment' },
+                { t: '         | "Window" >> beam.WindowInto(', c: 'c-func' },
+                { t: '             FixedWindows(WINDOW_SIZE * 60))', c: '' },
+                { t: '         # 3) Write one file per window', c: 'c-comment' },
+                { t: '         | "Write Files to GCS" >> beam.io.WriteToText(', c: 'c-func' },
+                { t: '             f"gs://{BUCKET_NAME}/samples/output"))', c: '' },
+                { t: '', c: '' },
+                { t: 'if __name__ == "__main__":', c: 'c-keyword' },
+                { t: '    run()', c: '' }
+            ];
+            for (const line of lines) {
+                const div = document.createElement('div');
+                div.className = 'code-line ' + line.c;
+                div.textContent = line.t || '\u00A0';
+                codeBody.appendChild(div);
+            }
+        }
+
+        function switchLang(lang) {
+            document.querySelectorAll('.code-tab').forEach(t => t.classList.remove('active'));
+            event.target.classList.add('active');
+            if (lang === 'java') renderJavaCode();
+            else renderPythonCode();
+        }
+
+        // ==========================================================
+        // TASK 3: START PIPELINE
+        // ==========================================================
+        async function runTask3() {
+            document.getElementById('btnTask3').disabled = true;
+            document.getElementById('stagePipeline').classList.add('active');
+
+            log('', 'info');
+            log('// Task 3: Lanzar pipeline Dataflow', 'info');
+            log('$ mvn compile exec:java \\', 'cmd');
+            await wait(200);
+            log('  -Dexec.mainClass=com.examples.pubsub.streaming.PubSubToGcs \\', 'cmd');
+            await wait(200);
+            log('  -Dexec.cleanupDaemonThreads=false \\', 'cmd');
+            await wait(200);
+            log('  -Dexec.args=" \\', 'cmd');
+            await wait(200);
+            log('    --project=' + projectId + ' \\', 'cmd');
+            await wait(200);
+            log('    --region=' + region + ' \\', 'cmd');
+            await wait(200);
+            log('    --inputTopic=projects/' + projectId + '/topics/' + topicId + ' \\', 'cmd');
+            await wait(200);
+            log('    --output=gs://' + bucketName + '/samples/output \\', 'cmd');
+            await wait(200);
+            log('    --runner=DataflowRunner \\', 'cmd');
+            await wait(200);
+            log('    --windowSize=2 \\', 'cmd');
+            await wait(200);
+            log('    --tempLocation=gs://' + bucketName + '/temp \\', 'cmd');
+            await wait(200);
+            log('    --workerDiskType=...pd-standard \\', 'cmd');
+            await wait(200);
+            log('    --workerMachineType=e2-standard-2"', 'cmd');
+            await wait(1200);
+
+            log('', 'info');
+            log('BUILD SUCCESS', 'success');
+            await wait(500);
+            log('INFO: Starting Dataflow job "pubsubtogcs"...', 'beam');
+            await wait(700);
+
+            // Mostrar pipeline nodes
+            const nodes = ['pubsub', 'window', 'gcs'];
+            for (let i = 0; i < nodes.length; i++) {
+                document.querySelector(`[data-pnode="${nodes[i]}"]`).classList.add('show');
+                await wait(450);
+                const arrow = document.querySelector(`[data-parrow="${i+1}"]`);
+                if (arrow) arrow.classList.add('show');
+                await wait(150);
+            }
+
+            // Flechas flowing
+            document.querySelector('[data-parrow="1"]').classList.add('flowing');
+            document.querySelector('[data-parrow="2"]').classList.add('flowing');
+
+            log('', 'info');
+            log('⚠️ Puede tardar ~10 min en aparecer en la consola de Dataflow', 'warn');
+            await wait(500);
+            log('✓ Pipeline lanzado.', 'success');
+            markResource('job', 'pubsubtogcs', '✓ submitted');
+
+            await wait(400);
+            addScore(20);
+            document.getElementById('btnTask3').classList.add('done');
+            document.getElementById('btnTask4').disabled = false;
+            document.getElementById('btnTask4').classList.add('active');
+        }
+
+        // ==========================================================
+        // TASK 4: OBSERVE JOB AND PIPELINE
+        // ==========================================================
+        async function runTask4() {
+            document.getElementById('btnTask4').disabled = true;
+
+            log('', 'info');
+            log('// Task 4: Observar job y progreso del pipeline', 'info');
+            log('// Dataflow console > Refresh', 'info');
+            await wait(600);
+
+            const jp = document.getElementById('jobProgress');
+            jp.classList.add('show');
+
+            const steps = ['submit','workers','running','windows','succeeded'];
+            for (const s of steps) {
+                const el = document.querySelector(`[data-step="${s}"]`);
+                el.classList.add('running');
+                if (s === 'submit') log('JOB_MESSAGE: Job submitted: pubsubtogcs', 'beam');
+                if (s === 'workers') log('JOB_MESSAGE: Workers started (e2-standard-2)', 'beam');
+                if (s === 'running') log('JOB_MESSAGE: Streaming pipeline running', 'beam');
+                if (s === 'windows') log('JOB_MESSAGE: FixedWindows (2 min) firing', 'beam');
+                if (s === 'succeeded') log('JOB_MESSAGE: Files being written to GCS', 'success');
+                await wait(1200);
+                el.classList.remove('running');
+                el.classList.add('ok');
+            }
+
+            // Contadores de nodos
+            log('', 'info');
+            log('// Stage metrics:', 'info');
+            const counts = { pubsub: '~18 msgs', window: '9 windows', gcs: '9 files' };
+            for (const [key, val] of Object.entries(counts)) {
+                const el = document.querySelector(`[data-count="${key}"]`);
+                if (el) el.textContent = val;
+                await wait(300);
+            }
+            await wait(400);
+
+            // Archivos en GCS
+            log('', 'info');
+            log('$ gcloud storage ls gs://' + bucketName + '/samples/', 'cmd');
+            await wait(800);
+
+            const gcsFiles = document.getElementById('gcsFiles');
+            gcsFiles.classList.add('show');
+            const fileList = document.getElementById('gcsFileList');
+            const files = [
+                { name: 'output-22:30-22:32-0-of-1', size: '2.1 KiB' },
+                { name: 'output-22:32-22:34-0-of-1', size: '1.8 KiB' },
+                { name: 'output-22:34-22:36-0-of-1', size: '2.3 KiB' },
+                { name: 'output-22:36-22:38-0-of-1', size: '1.9 KiB' }
+            ];
+            for (const f of files) {
+                const div = document.createElement('div');
+                div.className = 'gcs-file';
+                div.innerHTML = `<i class="fa-solid fa-file-lines"></i><span class="filename">${f.name}</span><span class="size">${f.size}</span>`;
+                fileList.appendChild(div);
+                log('  gs://' + bucketName + '/samples/' + f.name, 'gcs');
+                await wait(250);
+            }
+            document.getElementById('fileCount').textContent = files.length + ' files';
+
+            markResource('output', 'gs://' + bucketName + '/samples/output-*', '✓ ' + files.length + ' archivos');
+            markResource('job', 'pubsubtogcs', '✓ Running');
+            await wait(500);
+
+            addScore(25);
+            document.getElementById('btnTask4').classList.add('done');
+            document.getElementById('btnTask5').disabled = false;
+            document.getElementById('btnTask5').classList.add('active');
+        }
+
+        // ==========================================================
+        // TASK 5: CLEANUP
+        // ==========================================================
+        async function runTask5() {
+            document.getElementById('btnTask5').disabled = true;
+            document.getElementById('stageCleanup').classList.add('active');
+
+            log('', 'info');
+            log('// Task 5: Cleanup de recursos', 'info');
+            log('// Ctrl+C en Cloud Shell para detener la app local', 'warn');
+            await wait(500);
+
+            const cleanupBox = document.getElementById('cleanupBox');
+            cleanupBox.classList.add('show');
+            const cleanupItems = document.getElementById('cleanupItems');
+            const items = [
+                { cmd: 'gcloud scheduler jobs delete publisher-job', desc: 'Delete Cloud Scheduler job' },
+                { cmd: 'Dataflow console > Stop > Stop Job > Cancel', desc: 'Stop Dataflow job' },
+                { cmd: 'gcloud pubsub topics delete $TOPIC_ID', desc: 'Delete Pub/Sub topic' },
+                { cmd: 'gcloud storage rm -r gs://$BUCKET_NAME/samples/output*', desc: 'Delete output files' },
+                { cmd: 'gcloud storage rm -r gs://$BUCKET_NAME/temp/*', desc: 'Delete temp files' },
+                { cmd: 'gcloud storage buckets delete gs://$BUCKET_NAME', desc: 'Delete bucket' }
+            ];
+
+            for (const item of items) {
+                log('$ ' + item.cmd, 'cmd');
+                const div = document.createElement('div');
+                div.className = 'cleanup-item';
+                div.innerHTML = `<i class="fa-solid fa-trash"></i><span>${item.desc}</span><span class="done">✓</span>`;
+                cleanupItems.appendChild(div);
+                await wait(700);
+            }
+
+            await wait(500);
+            log('✓ Recursos eliminados. Cleanup completo.', 'success');
+
+            addScore(15);
+
+            log('', 'info');
+            log('=== LAB COMPLETADO ===', 'success');
+            log('Score final: ' + score + ' / 100', 'success');
+            log('Pipeline streaming: Pub/Sub → FixedWindows(2min) → GCS', 'info');
+            log('Files escritos: output-{HH:MM}-{HH:MM}-0-of-1', 'key');
+
+            document.getElementById('btnTask5').classList.add('done');
+        }
+
+        // ==========================================================
+        // RESET
+        // ==========================================================
+        function resetAll() {
+            score = 0;
+            document.getElementById('scoreVal').textContent = '0';
+
+            document.querySelectorAll('.resource-item').forEach(el => {
+                el.classList.remove('used');
+                const s = el.querySelector('.status');
+                if (s) s.textContent = '';
+            });
+
+            document.querySelector('[data-res="bucket"] .detail').textContent = 'PROJECT_ID-bucket';
+            document.querySelector('[data-res="topic"] .detail').textContent = 'my-id';
+            document.querySelector('[data-res="appengine"] .detail').textContent = 'region: us-central';
+            document.querySelector('[data-res="scheduler"] .detail').textContent = 'publisher-job (* * * * *)';
+            document.querySelector('[data-res="repo"] .detail').textContent = 'java-docs-samples/pubsub/streaming-analytics';
+            document.querySelector('[data-res="job"] .detail').textContent = 'pubsubtogcs';
+            document.querySelector('[data-res="output"] .detail').textContent = 'gs://bucket/samples/output-*';
+
+            document.querySelectorAll('.stage-card').forEach(el => el.classList.remove('active'));
+            document.querySelectorAll('.pipeline-node').forEach(el => el.classList.remove('show', 'running'));
+            document.querySelectorAll('.pipeline-arrow').forEach(el => el.classList.remove('show', 'flowing'));
+            document.querySelectorAll('.progress-step').forEach(el => el.classList.remove('ok', 'running'));
+            document.querySelectorAll('.count').forEach(el => el.textContent = '');
+
+            document.getElementById('schedulerVisual').classList.remove('show');
+            document.getElementById('codeEditor').classList.remove('show');
+            document.getElementById('codeBody').innerHTML = '';
+            document.getElementById('jobProgress').classList.remove('show');
+            document.getElementById('gcsFiles').classList.remove('show');
+            document.getElementById('gcsFileList').innerHTML = '';
+            document.getElementById('fileCount').textContent = '0 files';
+            document.getElementById('cleanupBox').classList.remove('show');
+            document.getElementById('cleanupItems').innerHTML = '';
+
+            ['btnTask1','btnTask2','btnTask3','btnTask4','btnTask5'].forEach(id => {
+                const btn = document.getElementById(id);
+                btn.disabled = (id !== 'btnTask1');
+                btn.classList.remove('active', 'done');
+            });
+            document.getElementById('btnTask1').disabled = false;
+
+            clearConsole();
+        }
+    </script>
+</body>
+</html>

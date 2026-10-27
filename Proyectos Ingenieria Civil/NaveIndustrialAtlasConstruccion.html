@@ -1,0 +1,985 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Construcción Nave Atlas · Gestión y Ejecución de Obra</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<style>
+:root{
+  --bg:#0a0e17; --panel:#121826; --panel2:#1e293b; --text:#f1f5f9; --muted:#94a3b8;
+  --civ:#f59e0b; --civ2:#d97706; --conc:#a8a29e; --steel:#38bdf8;
+  --ok:#22c55e; --err:#ef4444; --warn:#fbbf24; --border:#1e293b;
+  --money:#10b981; --safety:#ef4444; --quality:#8b5cf6; --plan:#06b6d4;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Segoe UI',Roboto,sans-serif;background:
+  radial-gradient(circle at 15% 0%,rgba(245,158,11,.09),transparent 40%),
+  radial-gradient(circle at 85% 100%,rgba(16,185,129,.07),transparent 40%),
+  var(--bg);color:var(--text);min-height:100vh;padding:18px;display:flex;flex-direction:column;align-items:center}
+header{text-align:center;margin-bottom:16px;max-width:980px}
+h1{font-size:1.5rem;font-weight:300;letter-spacing:1px;margin-bottom:6px}
+h1 i{color:var(--civ)}
+p.subtitle{color:var(--muted);font-size:.85rem}
+p.subtitle code{color:var(--civ);background:var(--panel);padding:2px 6px;border-radius:4px}
+
+.controls{display:flex;gap:6px;margin-bottom:18px;flex-wrap:wrap;justify-content:center;max-width:1400px}
+.btn{padding:9px 12px;border:2px solid var(--border);background:var(--panel);color:var(--text);
+  border-radius:8px;cursor:pointer;font-size:.71rem;font-weight:600;transition:all .25s;
+  display:flex;align-items:center;gap:6px;white-space:nowrap}
+.btn:hover:not(:disabled){transform:translateY(-2px);border-color:var(--civ)}
+.btn:disabled{opacity:.35;cursor:not-allowed}
+.btn.active{border-color:var(--civ);background:rgba(245,158,11,.12);box-shadow:0 0 15px rgba(245,158,11,.25)}
+.btn.done{border-color:var(--ok);background:rgba(34,197,94,.12);color:var(--ok)}
+.btn i{font-size:.86rem}
+
+.workspace{display:grid;grid-template-columns:280px 1fr 380px;gap:16px;width:100%;max-width:1680px;align-items:start}
+.panel{background:var(--panel);border:1px solid var(--border);border-radius:12px;padding:14px}
+.panel-title{font-size:.7rem;text-transform:uppercase;letter-spacing:1.5px;color:var(--muted);
+  margin-bottom:12px;padding-bottom:9px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:7px}
+
+.resource-item{background:var(--panel2);border:1px solid var(--border);border-radius:8px;padding:8px 10px;
+  font-size:.7rem;font-family:'Courier New',monospace;color:var(--muted);display:flex;flex-direction:column;
+  gap:2px;margin-bottom:6px;transition:all .4s ease;opacity:.42}
+.resource-item.used{opacity:1;border-color:var(--civ);color:var(--text);background:rgba(245,158,11,.07)}
+.resource-item .name{display:flex;align-items:center;gap:6px}
+.resource-item .name i{font-size:.8rem}
+.resource-item .detail{font-size:.62rem;color:var(--civ);font-weight:bold;word-break:break-all}
+.resource-item .status{font-size:.6rem;color:var(--ok)}
+
+.canvas{display:flex;flex-direction:column;gap:14px}
+.stage-card{background:var(--panel);border:1px solid var(--border);border-radius:12px;padding:14px;
+  opacity:.3;transform:translateY(8px);transition:all .5s ease}
+.stage-card.active{opacity:1;transform:translateY(0);border-color:var(--civ);box-shadow:0 0 25px rgba(245,158,11,.12)}
+.stage-card h2{font-size:.9rem;margin-bottom:10px;display:flex;align-items:center;gap:9px}
+.stage-card h2 .tag{font-size:.56rem;padding:3px 8px;border-radius:10px;background:var(--panel2);
+  color:var(--muted);font-family:monospace;margin-left:auto}
+
+/* Plano de obra (site plan) */
+.site-plan{position:relative;background:linear-gradient(180deg,#0f172a,#020617);border-radius:10px;
+  border:1px solid var(--border);height:320px;overflow:hidden}
+.site-plan::before{content:'PLANO DE OBRA · PLANTA';position:absolute;top:8px;left:10px;font-size:.58rem;
+  color:var(--muted);font-family:monospace;letter-spacing:1px;z-index:10}
+.plan-grid{position:absolute;inset:0;background-image:
+  linear-gradient(rgba(56,189,248,.05) 1px,transparent 1px),
+  linear-gradient(90deg,rgba(56,189,248,.05) 1px,transparent 1px);
+  background-size:30px 30px}
+
+/* Terreno */
+.terreno{position:absolute;top:12%;left:8%;right:8%;bottom:12%;border:2px dashed rgba(245,158,11,.4);border-radius:4px}
+.terreno::before{content:'TERRENO 80 × 60 m';position:absolute;top:-16px;left:0;font-size:.55rem;color:var(--civ);font-family:monospace}
+
+/* Nave construcción */
+.nave-outline{position:absolute;top:22%;left:18%;right:18%;bottom:28%;
+  border:2px solid var(--civ);border-radius:2px;opacity:0;transition:all .6s ease}
+.nave-outline.show{opacity:1}
+
+/* Zapatas */
+.zapata{position:absolute;width:20px;height:20px;background:rgba(168,162,158,.3);
+  border:2px solid var(--conc);border-radius:2px;opacity:0;transform:scale(0);
+  transition:all .4s ease;font-size:.5rem;color:var(--conc);display:flex;align-items:center;justify-content:center;font-family:monospace}
+.zapata.show{opacity:1;transform:scale(1)}
+.zapata.z1{top:24%;left:20%}
+.zapata.z2{top:24%;left:47%}
+.zapata.z3{top:24%;left:74%}
+.zapata.z4{top:56%;left:20%}
+.zapata.z5{top:56%;left:47%}
+.zapata.z6{top:56%;left:74%}
+
+/* Columnas */
+.col-build{position:absolute;width:8px;height:8px;background:var(--conc);border-radius:50%;
+  opacity:0;transform:scale(0);transition:all .4s ease;box-shadow:0 0 8px var(--conc)}
+.col-build.show{opacity:1;transform:scale(1)}
+
+/* Armadura cubierta */
+.truss-build{position:absolute;height:3px;background:var(--steel);opacity:0;
+  transition:all .6s ease;box-shadow:0 0 6px var(--steel)}
+.truss-build.show{opacity:1}
+
+/* Grúa torre */
+.crane{position:absolute;left:3%;bottom:10%;width:4px;height:70%;
+  background:linear-gradient(180deg,var(--warn),#a16207);opacity:0;transition:all .8s ease}
+.crane.show{opacity:1}
+.crane::before{content:'';position:absolute;top:0;left:-30px;width:70px;height:3px;
+  background:var(--warn);box-shadow:0 0 6px var(--warn)}
+.crane::after{content:'';position:absolute;top:3px;left:15px;width:1px;height:20px;background:var(--muted)}
+
+/* Camión */
+.truck{position:absolute;width:20px;height:8px;background:#0ea5e9;border-radius:2px;
+  opacity:0;transition:all .5s ease;font-size:.45rem;color:#000;font-weight:bold;
+  display:flex;align-items:center;justify-content:center;font-family:monospace}
+.truck.show{opacity:1}
+
+/* Personal */
+.worker{position:absolute;width:6px;height:6px;background:var(--safety);border-radius:50%;
+  opacity:0;transition:all .4s ease;box-shadow:0 0 5px var(--safety)}
+.worker.show{opacity:1}
+
+/* Gantt */
+.gantt{display:none;background:#0d1117;border-radius:8px;padding:12px;border:1px solid var(--border);margin-top:8px}
+.gantt.show{display:block;animation:fadeIn .4s ease}
+.gantt-header{color:var(--plan);font-size:.65rem;margin-bottom:10px;padding-bottom:6px;
+  border-bottom:1px solid rgba(6,182,212,.3);display:flex;justify-content:space-between}
+.gantt-row{display:grid;grid-template-columns:110px 1fr;gap:8px;align-items:center;
+  padding:3px 0;font-size:.6rem;font-family:'Courier New',monospace}
+.gantt-label{color:var(--muted)}
+.gantt-bar-wrap{height:14px;background:rgba(30,41,59,.6);border-radius:3px;overflow:hidden;position:relative}
+.gantt-bar{height:100%;border-radius:3px;display:flex;align-items:center;justify-content:center;
+  font-size:.5rem;color:#000;font-weight:bold;opacity:0;transition:all .8s ease;width:0}
+.gantt-bar.show{opacity:1}
+
+/* Presupuesto */
+.budget{display:none;margin-top:8px;background:#0d1117;border-radius:8px;padding:12px;
+  border:1px solid var(--money)}
+.budget.show{display:block;animation:fadeIn .4s ease}
+.budget-header{color:var(--money);font-size:.68rem;margin-bottom:8px;padding-bottom:6px;
+  border-bottom:1px solid rgba(16,185,129,.3);display:flex;justify-content:space-between}
+.budget-row{display:flex;justify-content:space-between;padding:5px 6px;border-bottom:1px solid rgba(30,41,59,.5);
+  font-family:'Courier New',monospace;font-size:.63rem;opacity:0;animation:fadeIn .3s ease forwards}
+.budget-row .concept{color:#93c5fd}
+.budget-row .qty{color:var(--muted);font-size:.58rem}
+.budget-row .amount{color:var(--money);font-weight:bold}
+.budget-row.total{background:rgba(16,185,129,.08);border-top:2px solid var(--money);margin-top:4px;padding-top:7px;font-weight:bold}
+.budget-row.total .concept{color:var(--text)}
+
+/* KPI obra */
+.kpi-obra{display:none;grid-template-columns:repeat(4,1fr);gap:8px;margin-top:8px}
+.kpi-obra.show{display:grid;animation:fadeIn .4s ease}
+.kpi{background:var(--panel2);border:1px solid var(--border);border-radius:8px;padding:10px;text-align:center}
+.kpi .val{font-size:1.2rem;font-weight:bold;font-family:monospace;transition:all .3s}
+.kpi .lbl{font-size:.54rem;color:var(--muted);text-transform:uppercase;letter-spacing:.4px;margin-top:3px}
+.kpi.progress .val{color:var(--plan)}
+.kpi.cost .val{color:var(--money)}
+.kpi.safety .val{color:var(--safety)}
+.kpi.quality .val{color:var(--quality)}
+
+/* Barra progreso */
+.progress-track{display:none;margin-top:8px;background:#0d1117;border-radius:8px;padding:12px;
+  border:1px solid var(--plan)}
+.progress-track.show{display:block;animation:fadeIn .4s ease}
+.pt-header{color:var(--plan);font-size:.65rem;margin-bottom:8px;padding-bottom:6px;
+  border-bottom:1px solid rgba(6,182,212,.3);display:flex;justify-content:space-between}
+.pt-bar-wrap{height:20px;background:var(--panel2);border-radius:10px;overflow:hidden;position:relative}
+.pt-bar{height:100%;background:linear-gradient(90deg,var(--plan),#0891b2);border-radius:10px;
+  transition:width .8s ease;display:flex;align-items:center;justify-content:flex-end;
+  padding-right:8px;color:#fff;font-size:.6rem;font-weight:bold;font-family:monospace;width:0}
+.pt-milestones{display:flex;justify-content:space-between;margin-top:6px;font-size:.55rem;color:var(--muted);font-family:monospace}
+
+/* Safety panel */
+.safety-panel{display:none;margin-top:8px;background:#1a0a0a;border-radius:8px;padding:12px;
+  border:1px solid var(--safety)}
+.safety-panel.show{display:block;animation:fadeIn .4s ease}
+.sp-header{color:var(--safety);font-size:.66rem;margin-bottom:8px;padding-bottom:6px;
+  border-bottom:1px solid rgba(239,68,68,.3);display:flex;justify-content:space-between}
+.sp-item{display:flex;align-items:center;gap:8px;padding:4px 0;font-size:.62rem;
+  font-family:'Courier New',monospace;opacity:0;animation:fadeIn .3s ease forwards}
+.sp-item i{color:var(--safety);font-size:.7rem;width:14px;text-align:center}
+.sp-item .name{color:var(--text)}
+.sp-item .check{color:var(--ok);margin-left:auto;font-weight:bold}
+
+/* Quality panel */
+.quality-panel{display:none;margin-top:8px;background:#0f0a1a;border-radius:8px;padding:12px;
+  border:1px solid var(--quality)}
+.quality-panel.show{display:block;animation:fadeIn .4s ease}
+.qp-header{color:var(--quality);font-size:.66rem;margin-bottom:8px;padding-bottom:6px;
+  border-bottom:1px solid rgba(139,92,246,.3);display:flex;justify-content:space-between}
+.qp-item{display:flex;justify-content:space-between;padding:4px 0;font-size:.62rem;
+  font-family:'Courier New',monospace;opacity:0;animation:fadeIn .3s ease forwards;
+  border-bottom:1px solid rgba(30,41,59,.4)}
+.qp-item:last-child{border-bottom:none}
+.qp-item .test{color:var(--muted)}
+.qp-item .result{font-weight:bold}
+.qp-item .result.pass{color:var(--ok)}
+.qp-item .result.fail{color:var(--err)}
+
+/* Código */
+.code-block{display:none;background:#0d1117;border-radius:8px;padding:10px;font-family:'Courier New',monospace;
+  font-size:.62rem;border:1px solid var(--border);margin-top:8px;max-height:220px;overflow-y:auto;line-height:1.55}
+.code-block.show{display:block;animation:fadeIn .4s ease}
+.code-block .fname{color:var(--civ);font-weight:bold;display:block;margin-bottom:6px;padding-bottom:4px;border-bottom:1px solid var(--border)}
+.cl{white-space:pre}
+.c-cm{color:#6a9955}.c-kw{color:#c586c0}.c-str{color:#ce9178}.c-fn{color:#dcdcaa}.c-var{color:#9cdcfe}.c-num{color:#b5cea8}
+
+/* Pipeline */
+.pipeline-visual{display:flex;align-items:center;justify-content:space-between;gap:3px;padding:12px 0;flex-wrap:wrap}
+.pipe-node{flex:1;min-width:66px;text-align:center;padding:8px 4px;border-radius:8px;font-size:.56rem;
+  font-weight:600;border:2px solid var(--border);background:var(--panel2);color:var(--muted);
+  opacity:0;transform:scale(.85);transition:all .5s ease}
+.pipe-node.show{opacity:1;transform:scale(1)}
+.pipe-node.done{border-color:var(--ok);color:var(--ok);background:rgba(34,197,94,.08)}
+.pipe-node.current{border-color:var(--civ);color:var(--civ);background:rgba(245,158,11,.1);animation:pulse 1.2s infinite}
+.pipe-node .sub{display:block;font-size:.46rem;font-weight:normal;color:var(--muted);margin-top:2px;font-family:monospace}
+.pipe-arrow{color:var(--border);font-size:.65rem;opacity:0;transition:opacity .4s ease}
+.pipe-arrow.show{opacity:1;color:var(--civ)}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.5}}
+
+/* Quiz */
+.quiz-box{display:none;margin-top:8px}
+.quiz-box.show{display:block;animation:fadeIn .4s ease}
+.quiz-q{font-size:.78rem;margin-bottom:9px;font-weight:600}
+.quiz-q code{color:var(--civ);background:var(--panel2);padding:1px 5px;border-radius:4px}
+.quiz-opts{display:flex;flex-direction:column;gap:6px}
+.quiz-btn{padding:8px 11px;border:2px solid var(--border);background:var(--panel2);color:var(--text);
+  border-radius:7px;cursor:pointer;font-size:.72rem;font-weight:600;text-align:left;transition:all .2s}
+.quiz-btn:hover:not(:disabled){border-color:var(--civ)}
+.quiz-btn:disabled{cursor:not-allowed}
+.quiz-btn.correct{border-color:var(--ok);background:rgba(34,197,94,.15);color:var(--ok)}
+.quiz-btn.incorrect{border-color:var(--err);background:rgba(239,68,68,.15);color:var(--err)}
+.quiz-fb{margin-top:8px;font-size:.7rem;padding:8px;border-radius:6px;display:none}
+.quiz-fb.show{display:block;animation:fadeIn .3s ease}
+.quiz-fb.ok{background:rgba(34,197,94,.12);color:#86efac;border-left:3px solid var(--ok)}
+.quiz-fb.bad{background:rgba(239,68,68,.12);color:#fca5a5;border-left:3px solid var(--err)}
+
+/* Consola */
+.console{font-family:'Courier New',monospace;font-size:.66rem;background:#000;border-radius:8px;padding:13px;
+  height:100%;min-height:500px;max-height:980px;overflow-y:auto;border:1px solid var(--border)}
+.console::-webkit-scrollbar{width:6px}
+.console::-webkit-scrollbar-thumb{background:var(--panel2);border-radius:3px}
+.log-line{margin-bottom:4px;line-height:1.45;animation:fadeIn .3s ease;word-wrap:break-word}
+.log-line.cmd{color:var(--civ);font-weight:bold}
+.log-line.info{color:var(--muted)}
+.log-line.ok{color:var(--ok)}
+.log-line.warn{color:var(--warn)}
+.log-line.err{color:var(--err)}
+.log-line.key{color:#93c5fd}
+.log-line.money{color:var(--money)}
+.log-line.plan{color:var(--plan)}
+.log-line.safety{color:var(--safety)}
+.log-line.quality{color:var(--quality)}
+@keyframes fadeIn{from{opacity:0;transform:translateX(-5px)}to{opacity:1;transform:translateX(0)}}
+
+.score-bar{margin-top:18px;display:flex;gap:20px;align-items:center;background:var(--panel);
+  padding:11px 22px;border-radius:10px;border:1px solid var(--border);font-size:.82rem}
+.score-bar .si{display:flex;align-items:center;gap:7px}
+.score-bar .si i{color:var(--civ)}
+.score-bar .sv{color:var(--ok);font-weight:bold;font-family:monospace}
+
+@media(max-width:1250px){.workspace{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+
+<header>
+  <h1><i class="fa-solid fa-helmet-safety"></i> Construcción Nave Industrial Atlas</h1>
+  <p class="subtitle">Ejecución de Obra End-to-End · 60×40 m · 240 días · Presupuesto $18.5M MXN · Seguridad + Calidad + Cronograma</p>
+</header>
+
+<div class="controls">
+  <button class="btn" id="bC0" onclick="phase(0)"><i class="fa-solid fa-clipboard-list"></i> C0 · Licitación</button>
+  <button class="btn" id="bC1" onclick="phase(1)" disabled><i class="fa-solid fa-calculator"></i> C1 · Presupuesto</button>
+  <button class="btn" id="bC2" onclick="phase(2)" disabled><i class="fa-solid fa-calendar-days"></i> C2 · Cronograma</button>
+  <button class="btn" id="bC3" onclick="phase(3)" disabled><i class="fa-solid fa-truck-ramp-box"></i> C3 · Preliminares</button>
+  <button class="btn" id="bC4" onclick="phase(4)" disabled><i class="fa-solid fa-mountain"></i> C4 · Cimentación</button>
+  <button class="btn" id="bC5" onclick="phase(5)" disabled><i class="fa-solid fa-building"></i> C5 · Superestructura</button>
+  <button class="btn" id="bC6" onclick="phase(6)" disabled><i class="fa-solid fa-helmet-safety"></i> C6 · Seguridad</button>
+  <button class="btn" id="bC7" onclick="phase(7)" disabled><i class="fa-solid fa-clipboard-check"></i> C7 · Calidad</button>
+  <button class="btn" id="bC8" onclick="phase(8)" disabled><i class="fa-solid fa-flag-checkered"></i> C8 · Entrega</button>
+  <button class="btn" id="bQuiz" onclick="runQuiz()" disabled><i class="fa-solid fa-question"></i> Quiz</button>
+  <button class="btn" id="bReset" onclick="resetAll()" style="border-color:#ef4444;color:#fca5a5"><i class="fa-solid fa-rotate-left"></i></button>
+</div>
+
+<div class="workspace">
+
+  <!-- COL 1: Recursos -->
+  <div class="panel">
+    <div class="panel-title"><i class="fa-solid fa-cubes"></i> Recursos de Obra</div>
+    <div id="resList">
+      <div class="resource-item" data-r="terreno"><div class="name"><i class="fa-solid fa-map" style="color:var(--civ)"></i> Terreno</div><div class="detail">4,800 m² · Zona II</div></div>
+      <div class="resource-item" data-r="presupuesto"><div class="name"><i class="fa-solid fa-calculator" style="color:var(--money)"></i> Presupuesto</div><div class="detail">$18.5M MXN</div><div class="status"></div></div>
+      <div class="resource-item" data-r="cronograma"><div class="name"><i class="fa-solid fa-calendar-days" style="color:var(--plan)"></i> Cronograma</div><div class="detail">240 días hábiles</div><div class="status"></div></div>
+      <div class="resource-item" data-r="maquinaria"><div class="name"><i class="fa-solid fa-tractor" style="color:var(--warn)"></i> Maquinaria</div><div class="detail">Grúa torre + retro</div><div class="status"></div></div>
+      <div class="resource-item" data-r="personal"><div class="name"><i class="fa-solid fa-users" style="color:var(--safety)"></i> Personal</div><div class="detail">42 trabajadores</div><div class="status"></div></div>
+      <div class="resource-item" data-r="concreto"><div class="name"><i class="fa-solid fa-mountain" style="color:var(--conc)"></i> Concreto premezclado</div><div class="detail">f'c=280 · 340 m³</div><div class="status"></div></div>
+      <div class="resource-item" data-r="acero"><div class="name"><i class="fa-solid fa-grip-lines" style="color:var(--steel)"></i> Acero estructural</div><div class="detail">68 t · A992</div><div class="status"></div></div>
+      <div class="resource-item" data-r="seguridad"><div class="name"><i class="fa-solid fa-helmet-safety" style="color:var(--safety)"></i> Plan de Seguridad</div><div class="detail">NOM-031-STPS</div><div class="status"></div></div>
+      <div class="resource-item" data-r="calidad"><div class="name"><i class="fa-solid fa-clipboard-check" style="color:var(--quality)"></i> Plan de Calidad</div><div class="detail">ITP · 48 pruebas</div><div class="status"></div></div>
+      <div class="resource-item" data-r="supervision"><div class="name"><i class="fa-solid fa-user-tie" style="color:var(--civ)"></i> Supervisión externa</div><div class="detail">Residente + DRO</div><div class="status"></div></div>
+      <div class="resource-item" data-r="entrega"><div class="name"><i class="fa-solid fa-flag-checkered" style="color:var(--ok)"></i> Acta de entrega</div><div class="detail">Finiquito + garantía</div><div class="status"></div></div>
+    </div>
+  </div>
+
+  <!-- COL 2: Canvas -->
+  <div class="canvas">
+
+    <!-- Plano de obra -->
+    <div class="stage-card" id="stPlan">
+      <h2><i class="fa-solid fa-map" style="color:var(--civ)"></i> Plano de Obra · Avance Constructivo <span class="tag" id="planTag">C0</span></h2>
+      <div class="site-plan" id="sitePlan">
+        <div class="plan-grid"></div>
+        <div class="terreno"></div>
+        <div class="nave-outline" id="naveOutline"></div>
+        <!-- Grúa -->
+        <div class="crane" id="crane"></div>
+        <!-- Zapatas -->
+        <div class="zapata z1" id="zap1">Z1</div>
+        <div class="zapata z2" id="zap2">Z2</div>
+        <div class="zapata z3" id="zap3">Z3</div>
+        <div class="zapata z4" id="zap4">Z4</div>
+        <div class="zapata z5" id="zap5">Z5</div>
+        <div class="zapata z6" id="zap6">Z6</div>
+        <!-- Columnas -->
+        <div class="col-build" id="colB1" style="top:22%;left:22%"></div>
+        <div class="col-build" id="colB2" style="top:22%;left:49%"></div>
+        <div class="col-build" id="colB3" style="top:22%;left:76%"></div>
+        <div class="col-build" id="colB4" style="top:54%;left:22%"></div>
+        <div class="col-build" id="colB5" style="top:54%;left:49%"></div>
+        <div class="col-build" id="colB6" style="top:54%;left:76%"></div>
+        <!-- Armadura -->
+        <div class="truss-build" id="truss1" style="top:21%;left:18%;width:64%"></div>
+        <div class="truss-build" id="truss2" style="top:53%;left:18%;width:64%"></div>
+        <!-- Camión -->
+        <div class="truck" id="truck" style="bottom:5%;left:10%">CAM</div>
+        <!-- Personal -->
+        <div class="worker" id="w1" style="top:35%;left:30%"></div>
+        <div class="worker" id="w2" style="top:42%;left:55%"></div>
+        <div class="worker" id="w3" style="top:38%;left:70%"></div>
+      </div>
+    </div>
+
+    <!-- KPIs de obra -->
+    <div class="stage-card" id="stKpi">
+      <h2><i class="fa-solid fa-gauge-high" style="color:var(--plan)"></i> KPIs de Obra en Tiempo Real <span class="tag">C2+</span></h2>
+      <div class="kpi-obra" id="kpiObra">
+        <div class="kpi progress"><div class="val" id="kProg">0%</div><div class="lbl">Avance físico</div></div>
+        <div class="kpi cost"><div class="val" id="kCost">$0</div><div class="lbl">Costo acumulado</div></div>
+        <div class="kpi safety"><div class="val" id="kSaf">0</div><div class="lbl">Días sin accidente</div></div>
+        <div class="kpi quality"><div class="val" id="kQ">0</div><div class="lbl">Pruebas QC</div></div>
+      </div>
+      <div class="progress-track" id="progTrack">
+        <div class="pt-header"><span><i class="fa-solid fa-chart-line"></i> Avance físico acumulado</span><span id="progPct">0%</span></div>
+        <div class="pt-bar-wrap"><div class="pt-bar" id="progBar">0%</div></div>
+        <div class="pt-milestones">
+          <span>C0</span><span>C3</span><span>C4</span><span>C5</span><span>C7</span><span>C8</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Presupuesto -->
+    <div class="stage-card" id="stBudget">
+      <h2><i class="fa-solid fa-calculator" style="color:var(--money)"></i> Presupuesto por Partidas <span class="tag">C1</span></h2>
+      <div class="budget" id="budgetBox">
+        <div class="budget-header">
+          <span><i class="fa-solid fa-file-invoice-dollar"></i> Presupuesto Nave Atlas</span>
+          <span id="budgetTotal">Total: $18,500,000</span>
+        </div>
+        <div id="budgetRows"></div>
+      </div>
+    </div>
+
+    <!-- Gantt -->
+    <div class="stage-card" id="stGantt">
+      <h2><i class="fa-solid fa-calendar-days" style="color:var(--plan)"></i> Cronograma Gantt <span class="tag">C2</span></h2>
+      <div class="gantt" id="ganttBox">
+        <div class="gantt-header">
+          <span><i class="fa-solid fa-clock"></i> 240 días hábiles</span>
+          <span id="ganttCurrent">Día 0</span>
+        </div>
+        <div id="ganttRows"></div>
+      </div>
+    </div>
+
+    <!-- Seguridad -->
+    <div class="stage-card" id="stSafety">
+      <h2><i class="fa-solid fa-helmet-safety" style="color:var(--safety)"></i> Plan de Seguridad <span class="tag">C6</span></h2>
+      <div class="safety-panel" id="safetyBox">
+        <div class="sp-header">
+          <span><i class="fa-solid fa-shield-halved"></i> NOM-031-STPS</span>
+          <span id="safetyDays">Días sin accidente: 0</span>
+        </div>
+        <div id="safetyItems"></div>
+      </div>
+    </div>
+
+    <!-- Calidad -->
+    <div class="stage-card" id="stQuality">
+      <h2><i class="fa-solid fa-clipboard-check" style="color:var(--quality)"></i> Control de Calidad · ITP <span class="tag">C7</span></h2>
+      <div class="quality-panel" id="qualityBox">
+        <div class="qp-header">
+          <span><i class="fa-solid fa-vial"></i> Pruebas de calidad</span>
+          <span id="qSummary">0/0 aprobadas</span>
+        </div>
+        <div id="qualityItems"></div>
+      </div>
+    </div>
+
+    <!-- Código -->
+    <div class="stage-card" id="stCode">
+      <h2><i class="fa-solid fa-code" style="color:var(--civ)"></i> Documento de Obra <span class="tag" id="codeTag">--</span></h2>
+      <div class="code-block" id="codeBlock"></div>
+    </div>
+
+    <!-- Pipeline -->
+    <div class="stage-card" id="stPipe">
+      <h2><i class="fa-solid fa-diagram-project" style="color:var(--civ)"></i> Pipeline Constructivo <span class="tag">C0 → C8</span></h2>
+      <div class="pipeline-visual" id="pipeViz"></div>
+    </div>
+
+    <!-- Quiz -->
+    <div class="stage-card" id="stQuiz">
+      <h2><i class="fa-solid fa-question" style="color:var(--ok)"></i> Test de Comprensión <span class="tag">Quiz</span></h2>
+      <div class="quiz-box" id="quizBox">
+        <div class="quiz-q"><i class="fa-solid fa-circle-question" style="color:var(--civ)"></i> ¿Cuál es el <b>orden correcto</b> de las fases constructivas en una nave industrial?</div>
+        <div class="quiz-opts">
+          <button class="quiz-btn" id="qA" onclick="answerQuiz('a')">A) Superestructura → Cimentación → Preliminares</button>
+          <button class="quiz-btn" id="qB" onclick="answerQuiz('b')">B) Preliminares → Cimentación → Superestructura → Acabados → Entrega</button>
+          <button class="quiz-btn" id="qC" onclick="answerQuiz('c')">C) Acabados → Preliminares → Entrega → Cimentación</button>
+        </div>
+        <div class="quiz-fb" id="quizFb"></div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- COL 3: Consola -->
+  <div class="panel" style="padding:0;background:transparent;border:none">
+    <div class="console" id="console">
+      <div class="log-line info">// Construcción Nave Atlas · consola de obra</div>
+      <div class="log-line info">// Presiona "C0 · Licitación" para comenzar</div>
+    </div>
+  </div>
+
+</div>
+
+<div class="score-bar">
+  <div class="si"><i class="fa-solid fa-star"></i> Score:</div>
+  <div class="si"><span class="sv" id="scoreVal">0</span> / 100</div>
+  <div class="si" style="margin-left:auto;color:var(--muted);font-size:.72rem">
+    <i class="fa-solid fa-clock"></i> Construcción · 9 fases
+  </div>
+</div>
+
+<script>
+const C=document.getElementById('console');
+const wait=ms=>new Promise(r=>setTimeout(r,ms));
+let score=0, prog=0, cost=0, qcPassed=0, days=0;
+
+function log(t,cls='info'){const d=document.createElement('div');d.className='log-line '+cls;d.innerHTML=t;C.appendChild(d);C.scrollTop=C.scrollHeight;}
+function clr(){C.innerHTML='<div class="log-line info">// Consola reiniciada</div>';}
+function addScore(p){score=Math.min(100,score+p);document.getElementById('scoreVal').textContent=score;}
+function mark(r,d,s){const el=document.querySelector(`.resource-item[data-r="${r}"]`);if(!el)return;el.classList.add('used');if(d)el.querySelector('.detail').textContent=d;if(s){const st=el.querySelector('.status');if(st)st.textContent=s;}}
+
+function updateKPI(){
+  document.getElementById('kProg').textContent=Math.round(prog)+'%';
+  document.getElementById('kCost').textContent='$'+(cost/1000000).toFixed(1)+'M';
+  document.getElementById('kSaf').textContent=days;
+  document.getElementById('kQ').textContent=qcPassed;
+  document.getElementById('progBar').style.width=prog+'%';
+  document.getElementById('progBar').textContent=Math.round(prog)+'%';
+  document.getElementById('progPct').textContent=Math.round(prog)+'%';
+}
+
+function buildPipe(nodes){const v=document.getElementById('pipeViz');v.innerHTML='';nodes.forEach((n,i)=>{const d=document.createElement('div');d.className=`pipe-node ${n.c||''}`;d.innerHTML=`<i class="fa-solid ${n.i}"></i> ${n.l}<span class="sub">${n.s}</span>`;v.appendChild(d);if(i<nodes.length-1){const a=document.createElement('div');a.className='pipe-arrow';a.innerHTML='<i class="fa-solid fa-arrow-right"></i>';v.appendChild(a);}});}
+async function showPipe(){for(const n of document.querySelectorAll('.pipe-node')){n.classList.add('show');await wait(180);}for(const a of document.querySelectorAll('.pipe-arrow')){a.classList.add('show');await wait(80);}}
+
+/* Fases */
+async function phase(n){
+  const btn=document.getElementById('bC'+n);
+  btn.disabled=true;
+  if(n>0)clr();
+  document.getElementById('stPlan').classList.add('active');
+
+  if(n===0){
+    document.getElementById('planTag').textContent='C0';
+    log('// C0 · Licitación y adjudicación','info');
+    log('$ cat convocatoria_licitacion.pdf','cmd');
+    await wait(700);
+    log('CONVOCATORIA · Nave Industrial Atlas','key');
+    log('  · Volumen: 60×40 m · 2,400 m² construidos','info');
+    log('  · Plazo: 240 días hábiles','info');
+    log('  · Presupuesto base: $18,500,000 MXN','money');
+    await wait(500);
+    log('','info');
+    log('Propuestas recibidas:','key');
+    log('  1. Constructora Alpha  → $18.2M (215 días)','info');
+    log('  2. Constructora Beta   → $17.8M (260 días)','info');
+    log('  3. Constructora Gamma  → $19.1M (200 días)','info');
+    await wait(700);
+    log('','info');
+    log('$ python evaluar_propuestas.py','cmd');
+    await wait(600);
+    log('Análisis multi-criterio:','info');
+    log('  · Precio: 40% · Plazo: 30% · Experiencia: 20% · Seguridad: 10%','key');
+    log('  → GANADOR: Constructora Alpha','ok');
+    log('    Precio: $18.2M · Plazo: 215 días · 15 obras similares','ok');
+    await wait(500);
+    mark('terreno','4,800 m² · Zona II','✓');
+    mark('supervision','Residente + DRO','✓ asignados');
+    addScore(8);
+    btn.classList.add('done');
+    document.getElementById('bC1').disabled=false;
+    document.getElementById('bC1').classList.add('active');
+  }
+
+  if(n===1){
+    document.getElementById('planTag').textContent='C1';
+    document.getElementById('stBudget').classList.add('active');
+    document.getElementById('stCode').classList.add('active');
+    document.getElementById('codeTag').textContent='C1 · APU';
+    log('// C1 · Presupuesto y APU','info');
+    log('$ python generar_presupuesto.py --proyecto atlas','cmd');
+    await wait(700);
+    const budgetBox=document.getElementById('budgetBox');
+    budgetBox.classList.add('show');
+    const rows=document.getElementById('budgetRows');
+    const partidas=[
+      {c:'Preliminares y obra falsa',q:'1 global',a:850000},
+      {c:'Cimentación (zapatas + pedestales)',q:'340 m³ concreto',a:3200000},
+      {c:'Estructura de concreto (columnas)',q:'42 m³',a:1800000},
+      {c:'Estructura de acero (armaduras + correas)',q:'68 t',a:4500000},
+      {c:'Cubierta (lámina + aislante)',q:'2,400 m²',a:2200000},
+      {c:'Muros y fachadas',q:'1,200 m²',a:1500000},
+      {c:'Pisos industriales',q:'2,400 m²',a:1300000},
+      {c:'Instalaciones (eléctrica + hidráulica)',q:'1 global',a:1800000},
+      {c:'Acabados y pintura',q:'1 global',a:700000},
+      {c:'Limpieza y entrega',q:'1 global',a:300000}
+    ];
+    for(const p of partidas){
+      const div=document.createElement('div');
+      div.className='budget-row';
+      div.innerHTML=`<div><div class="concept">${p.c}</div><div class="qty">${p.q}</div></div><div class="amount">$${p.a.toLocaleString()}</div>`;
+      rows.appendChild(div);
+      await wait(180);
+    }
+    await wait(400);
+    const total=document.createElement('div');
+    total.className='budget-row total';
+    total.innerHTML=`<div class="concept">TOTAL (sin IVA)</div><div class="amount">$18,500,000</div>`;
+    rows.appendChild(total);
+    await wait(500);
+    log('','info');
+    log('APU · Análisis de Precios Unitarios:','key');
+    log('  · Concreto f\'c=280: $2,850/m³','money');
+    log('  · Acero estructural A992: $66,200/t','money');
+    log('  · Mano de obra: $450/jornal','money');
+    await wait(600);
+    log('','info');
+    log('✓ Presupuesto aprobado: $18.5M MXN','ok');
+    mark('presupuesto','$18.5M MXN','✓ aprobado');
+    mark('concreto','f\'c=280 · 340 m³','✓ programado');
+    mark('acero','68 t · A992','✓ programado');
+    addScore(10);
+    btn.classList.add('done');
+    document.getElementById('bC2').disabled=false;
+    document.getElementById('bC2').classList.add('active');
+  }
+
+  if(n===2){
+    document.getElementById('planTag').textContent='C2';
+    document.getElementById('stKpi').classList.add('active');
+    document.getElementById('kpiObra').classList.add('show');
+    document.getElementById('progTrack').classList.add('show');
+    document.getElementById('stGantt').classList.add('active');
+    log('// C2 · Cronograma de obra','info');
+    log('$ python generar_gantt.py --dias 240','cmd');
+    await wait(700);
+    const ganttBox=document.getElementById('ganttBox');
+    ganttBox.classList.add('show');
+    const ganttRows=document.getElementById('ganttRows');
+    const tasks=[
+      {n:'Preliminares',start:0,dur:20,color:'#06b6d4'},
+      {n:'Cimentación',start:20,dur:45,color:'#a8a29e'},
+      {n:'Columnas concreto',start:60,dur:35,color:'#78716c'},
+      {n:'Acero estructural',start:95,dur:40,color:'#38bdf8'},
+      {n:'Cubierta',start:135,dur:30,color:'#0ea5e9'},
+      {n:'Muros y fachadas',start:150,dur:40,color:'#f59e0b'},
+      {n:'Instalaciones',start:165,dur:45,color:'#10b981'},
+      {n:'Pisos',start:190,dur:25,color:'#8b5cf6'},
+      {n:'Acabados',start:210,dur:20,color:'#ec4899'},
+      {n:'Entrega',start:230,dur:10,color:'#22c55e'}
+    ];
+    for(const t of tasks){
+      const row=document.createElement('div');
+      row.className='gantt-row';
+      const leftPct=(t.start/240)*100;
+      const widthPct=(t.dur/240)*100;
+      row.innerHTML=`<div class="gantt-label">${t.n}</div><div class="gantt-bar-wrap"><div class="gantt-bar" style="background:${t.color};margin-left:${leftPct}%;width:${widthPct}%">${t.dur}d</div></div>`;
+      ganttRows.appendChild(row);
+      await wait(150);
+    }
+    await wait(500);
+    log('','info');
+    log('Ruta crítica: Cimentación → Columnas → Acero → Cubierta','key');
+    log('  Duración total: 240 días hábiles','plan');
+    log('  Holgura total: 0 días (crítica)','warn');
+    await wait(500);
+    log('','info');
+    log('✓ Cronograma aprobado','ok');
+    mark('cronograma','240 días hábiles','✓ aprobado');
+    updateKPI();
+    addScore(10);
+    btn.classList.add('done');
+    document.getElementById('bC3').disabled=false;
+    document.getElementById('bC3').classList.add('active');
+  }
+
+  if(n===3){
+    document.getElementById('planTag').textContent='C3';
+    document.getElementById('stPipe').classList.add('active');
+    buildPipe([
+      {i:'fa-clipboard-list',l:'Licitación',s:'C0',c:'done'},
+      {i:'fa-calculator',l:'Presupuesto',s:'C1',c:'done'},
+      {i:'fa-calendar-days',l:'Cronograma',s:'C2',c:'done'},
+      {i:'fa-truck-ramp-box',l:'Preliminares',s:'C3',c:'current'},
+      {i:'fa-mountain',l:'Cimentación',s:'C4'},
+      {i:'fa-building',l:'Superestructura',s:'C5'},
+      {i:'fa-helmet-safety',l:'Seguridad',s:'C6'},
+      {i:'fa-clipboard-check',l:'Calidad',s:'C7'},
+      {i:'fa-flag-checkered',l:'Entrega',s:'C8'}
+    ]);
+    await showPipe();
+    log('// C3 · Trabajos preliminares','info');
+    log('$ python iniciar_obra.py --dia 1','cmd');
+    await wait(700);
+    log('Día 1 de obra','plan');
+    await wait(400);
+    log('','info');
+    log('Actividades preliminares:','key');
+    log('  · Trazo y nivelación del terreno','info');
+    log('  · Instalación de bodega y oficina de obra','info');
+    log('  · Colocación de malla perimetral','info');
+    log('  · Montaje de grúa torre','warn');
+    log('  · Llegada de maquinaria (retro, camiones)','info');
+    await wait(600);
+    // Visual
+    document.getElementById('naveOutline').classList.add('show');
+    document.getElementById('crane').classList.add('show');
+    document.getElementById('truck').classList.add('show');
+    await wait(400);
+    for(const id of ['w1','w2','w3']){document.getElementById(id).classList.add('show');await wait(200);}
+    await wait(500);
+    log('','info');
+    log('✓ Obra iniciada · Día 1 de 240','ok');
+    mark('maquinaria','Grúa torre + retro','✓ en obra');
+    mark('personal','42 trabajadores','✓ contratados');
+    days=1;prog=5;updateKPI();
+    addScore(8);
+    btn.classList.add('done');
+    document.getElementById('bC4').disabled=false;
+    document.getElementById('bC4').classList.add('active');
+  }
+
+  if(n===4){
+    document.getElementById('planTag').textContent='C4';
+    log('// C4 · Cimentación','info');
+    log('Día 20 de obra · Inicio de cimentación','plan');
+    await wait(500);
+    log('','info');
+    log('$ python ejecutar_cimentacion.py','cmd');
+    await wait(700);
+    log('Excavación de zapatas (2.5×2.5×0.5 m):','conc');
+    await wait(400);
+    // Zapatas
+    for(const id of ['zap1','zap2','zap3','zap4','zap5','zap6']){document.getElementById(id).classList.add('show');await wait(180);}
+    await wait(400);
+    log('  · 6 zapatas excavadas: 18.75 m³','info');
+    log('  · Armado de parrilla #6 @15 cm','conc');
+    log('  · Colado de concreto f\'c=280','conc');
+    log('  · 340 m³ concreto premezclado (28 camiones)','info');
+    await wait(600);
+    log('','info');
+    log('Control de calidad durante colado:','quality');
+    log('  · Muestras cilíndricas: 12 probetas','key');
+    log('  · Prueba de revenimiento: 12 cm ✓','ok');
+    log('  · Temperatura: 28°C ✓','ok');
+    await wait(500);
+    log('','info');
+    log('Columnas de concreto 40×60 cm:','conc');
+    for(const id of ['colB1','colB2','colB3','colB4','colB5','colB6']){document.getElementById(id).classList.add('show');await wait(150);}
+    await wait(400);
+    log('  · Cimbra metálica + armado 8Ø1"','info');
+    log('  · Colado de 42 m³','info');
+    log('  · Curado 7 días','info');
+    await wait(600);
+    log('','info');
+    log('✓ Cimentación y columnas terminadas','ok');
+    log('  Día 65 de obra · Avance: 27%','plan');
+    days=65;prog=27;cost=5000000;qcPassed=6;updateKPI();
+    mark('concreto','f\'c=280 · 340 m³','✓ colado');
+    addScore(12);
+    btn.classList.add('done');
+    document.getElementById('bC5').disabled=false;
+    document.getElementById('bC5').classList.add('active');
+  }
+
+  if(n===5){
+    document.getElementById('planTag').textContent='C5';
+    log('// C5 · Superestructura de acero','info');
+    log('Día 95 de obra · Inicio de montaje','plan');
+    await wait(500);
+    log('','info');
+    log('$ python montar_acero.py --toneladas 68','cmd');
+    await wait(700);
+    log('Llegada de acero estructural:','steel');
+    log('  · 3 camiones con 68 t de perfiles A992','info');
+    log('  · HEA 500 (armaduras) · IPE 400 (viga carril) · IPE 200 (correas)','info');
+    await wait(500);
+    log('','info');
+    log('Montaje con grúa torre:','warn');
+    await wait(400);
+    // Armaduras
+    document.getElementById('truss1').classList.add('show');
+    await wait(400);
+    document.getElementById('truss2').classList.add('show');
+    await wait(400);
+    log('  · Armadura 1 izada (18 t) ✓','ok');
+    log('  · Armadura 2 izada (18 t) ✓','ok');
+    log('  · Nivelación y aplome','ok');
+    log('  · Soldadura de placas base','warn');
+    await wait(500);
+    log('','info');
+    log('Control de calidad de soldadura:','quality');
+    log('  · Inspección visual 100% ✓','ok');
+    log('  · Líquidos penetrantes 20% ✓','ok');
+    log('  · Ultrasonido 10% ✓','ok');
+    await wait(500);
+    log('','info');
+    log('Cubierta:','steel');
+    log('  · Lámina KR-18 + aislante 2"','info');
+    log('  · 2,400 m² instalados','info');
+    await wait(600);
+    log('','info');
+    log('✓ Superestructura y cubierta terminadas','ok');
+    log('  Día 165 de obra · Avance: 68%','plan');
+    days=165;prog=68;cost=12500000;qcPassed=18;updateKPI();
+    mark('acero','68 t · A992','✓ montado');
+    addScore(14);
+    btn.classList.add('done');
+    document.getElementById('bC6').disabled=false;
+    document.getElementById('bC6').classList.add('active');
+  }
+
+  if(n===6){
+    document.getElementById('planTag').textContent='C6';
+    document.getElementById('stSafety').classList.add('active');
+    log('// C6 · Seguridad en obra (NOM-031-STPS)','info');
+    log('$ python auditar_seguridad.py','cmd');
+    await wait(700);
+    const safetyBox=document.getElementById('safetyBox');
+    safetyBox.classList.add('show');
+    const items=document.getElementById('safetyItems');
+    const safetyItems=[
+      {i:'fa-helmet-safety',n:'Casco, chaleco y botas (100%)'},
+      {i:'fa-mask-face',n:'Protección respiratoria en soldadura'},
+      {i:'fa-arrows-up-down',n:'Arnés y línea de vida en alturas'},
+      {i:'fa-fire-extinguisher',n:'Extintores y brigada contra incendio'},
+      {i:'fa-person-falling',n:'Barandales y señalización'},
+      {i:'fa-truck-fast',n:'Señalización vial y maniobras'},
+      {i:'fa-kit-medical',n:'Botiquín y capacitación primeros auxilios'},
+      {i:'fa-clipboard-list',n:'Permisos de trabajo y ATS'},
+      {i:'fa-people-group',n:'Comité de seguridad semanal'},
+      {i:'fa-file-shield',n:'IMSS y seguro de riesgos'}
+    ];
+    for(const s of safetyItems){
+      const div=document.createElement('div');
+      div.className='sp-item';
+      div.innerHTML=`<i class="fa-solid ${s.i}"></i><span class="name">${s.n}</span><span class="check">✓</span>`;
+      items.appendChild(div);
+      await wait(180);
+    }
+    await wait(500);
+    log('','info');
+    log('Auditoría de seguridad:','safety');
+    log('  · 10/10 puntos NOM-031-STPS ✓','ok');
+    log('  · 0 accidentes en 165 días','ok');
+    log('  · 42 trabajadores capacitados','ok');
+    await wait(500);
+    log('','info');
+    log('Programa de seguridad:','key');
+    log('  · Charla diaria de 5 min','info');
+    log('  · EPP completo (100%)','info');
+    log('  · Simulacro mensual','info');
+    await wait(500);
+    log('','info');
+    log('✓ Obra sin accidentes · 165 días','ok');
+    mark('seguridad','NOM-031-STPS','✓ 10/10');
+    addScore(12);
+    btn.classList.add('done');
+    document.getElementById('bC7').disabled=false;
+    document.getElementById('bC7').classList.add('active');
+  }
+
+  if(n===7){
+    document.getElementById('planTag').textContent='C7';
+    document.getElementById('stQuality').classList.add('active');
+    log('// C7 · Control de calidad (ITP)','info');
+    log('$ python ejecutar_itp.py --proyecto atlas','cmd');
+    await wait(700);
+    const qualityBox=document.getElementById('qualityBox');
+    qualityBox.classList.add('show');
+    const items=document.getElementById('qualityItems');
+    const tests=[
+      {t:'Revenimiento concreto (12 probetas)',r:'12 cm · OK'},
+      {t:'Resistencia concreto f\'c (28 días)',r:'292 kg/cm² · OK'},
+      {t:'Nivelación de zapatas',r:'±3 mm · OK'},
+      {t:'Verticalidad columnas',r:'±5 mm · OK'},
+      {t:'Aplome de armaduras',r:'±2 mm · OK'},
+      {t:'Inspección visual soldadura',r:'100% · OK'},
+      {t:'Líquidos penetrantes soldadura',r:'20% · OK'},
+      {t:'Ultrasonido soldadura',r:'10% · OK'},
+      {t:'Torque de pernos anclaje',r:'450 N·m · OK'},
+      {t:'Espesor de pintura',r:'75 μm · OK'},
+      {t:'Nivelación de cubierta',r:'±5 mm · OK'},
+      {t:'Compactación de relleno',r:'95% · OK'},
+      {t:'Pendiente de piso',r:'1.5% · OK'},
+      {t:'Resistencia de piso (esclerometría)',r:'320 kg/cm² · OK'},
+      {t:'Habilitado eléctrico',r:'OK'},
+      {t:'Hermeticidad hidráulica',r:'OK'}
+    ];
+    let passed=0;
+    for(const test of tests){
+      const div=document.createElement('div');
+      div.className='qp-item';
+      div.innerHTML=`<span class="test">${test.t}</span><span class="result pass">${test.r}</span>`;
+      items.appendChild(div);
+      passed++;
+      await wait(150);
+    }
+    qcPassed+=passed;
+    document.getElementById('qSummary').textContent=passed+'/'+passed+' aprobadas';
+    await wait(500);
+    log('','info');
+    log('Resultados de calidad:','quality');
+    log('  · 48 pruebas realizadas','ok');
+    log('  · 48 aprobadas (100%)','ok');
+    log('  · 0 no conformidades','ok');
+    await wait(500);
+    log('','info');
+    log('✓ Calidad verificada · ITP completado','ok');
+    log('  Día 220 de obra · Avance: 92%','plan');
+    days=220;prog=92;cost=17000000;updateKPI();
+    mark('calidad','ITP · 48 pruebas','✓ 100%');
+    addScore(12);
+    btn.classList.add('done');
+    document.getElementById('bC8').disabled=false;
+    document.getElementById('bC8').classList.add('active');
+  }
+
+  if(n===8){
+    document.getElementById('planTag').textContent='C8';
+    document.getElementById('stCode').classList.add('active');
+    document.getElementById('codeTag').textContent='C8 · Acta de entrega';
+    log('// C8 · Entrega y cierre de obra','info');
+    log('Día 230 de obra · Inicio de entrega','plan');
+    await wait(500);
+    log('$ python generar_acta_entrega.py','cmd');
+    await wait(700);
+    log('Checklist de entrega:','key');
+    const items=[
+      'Preliminares y obra falsa',
+      'Cimentación (zapatas + pedestales)',
+      'Estructura de concreto (columnas)',
+      'Estructura de acero (armaduras + correas)',
+      'Cubierta (lámina + aislante)',
+      'Muros y fachadas',
+      'Pisos industriales',
+      'Instalaciones (eléctrica + hidráulica)',
+      'Acabados y pintura',
+      'Limpieza general'
+    ];
+    for(const it of items){log(`  ✓ ${it}`,'ok');await wait(150);}
+    await wait(500);
+    log('','info');
+    log('Documentos entregados:','key');
+    log('  · Acta de entrega-recepción firmada','ok');
+    log('  · Planos as-built (12 planos)','ok');
+    log('  · Garantía de 12 meses','ok');
+    log('  · Manuales de operación y mantenimiento','ok');
+    await wait(600);
+    log('','info');
+    log('Finiquito de obra:','money');
+    log('  · Presupuesto original: $18,500,000','info');
+    log('  · Costo final:        $18,320,000','info');
+    log('  · Ahorro:              $180,000 (1.0%)','ok');
+    await wait(500);
+    log('','info');
+    log('✓ OBRA ENTREGADA','ok');
+    log('  Plazo: 230 días (10 días de adelanto)','plan');
+    log('  Calidad: 100% ITP aprobado','quality');
+    log('  Seguridad: 0 accidentes','safety');
+    days=230;prog=100;cost=18320000;updateKPI();
+    mark('entrega','Finiquito + garantía','✓ entregada');
+    addScore(14);
+    btn.classList.add('done');
+    document.getElementById('bQuiz').disabled=false;
+    document.getElementById('bQuiz').classList.add('active');
+    log('','info');
+    log('=== PROYECTO DE CONSTRUCCIÓN COMPLETADO ===','ok');
+    log('Nave Industrial Atlas · 60×40 m · $18.32M MXN','key');
+  }
+}
+
+function runQuiz(){
+  document.getElementById('stQuiz').classList.add('active');
+  document.getElementById('quizBox').classList.add('show');
+  document.getElementById('bQuiz').disabled=true;
+  log('','info');
+  log('// Quiz final de construcción','info');
+}
+function answerQuiz(a){
+  const A=document.getElementById('qA'),B=document.getElementById('qB'),Cb=document.getElementById('qC');
+  A.disabled=B.disabled=Cb.disabled=true;
+  const fb=document.getElementById('quizFb');
+  if(a==='b'){
+    B.classList.add('correct');
+    fb.className='quiz-fb show ok';
+    fb.innerHTML='<b>¡Correcto!</b> El orden lógico es <b>Preliminares → Cimentación → Superestructura → Acabados → Entrega</b>. Primero se prepara el sitio, luego se cimenta, se levanta la estructura, se terminan los acabados y finalmente se entrega al cliente.';
+    log('✓ Quiz correcto: orden de fases','ok');
+    addScore(10);
+  }else{
+    if(a==='a')A.classList.add('incorrect');
+    else Cb.classList.add('incorrect');
+    B.classList.add('correct');
+    fb.className='quiz-fb show bad';
+    fb.innerHTML='<b>Incorrecto.</b> La respuesta correcta es <b>B</b>: Preliminares → Cimentación → Superestructura → Acabados → Entrega. No se puede construir la superestructura sin cimentación previa.';
+    log('✗ Quiz incorrecto · respuesta correcta: B','warn');
+  }
+  setTimeout(()=>{
+    log('','info');
+    log('=== PROYECTO COMPLETADO ===','ok');
+    log('Score final: '+score+' / 100','ok');
+    log('Nave Atlas · Construcción end-to-end','key');
+    document.getElementById('bQuiz').classList.add('done');
+  },900);
+}
+
+function resetAll(){
+  score=0;prog=0;cost=0;qcPassed=0;days=0;
+  document.getElementById('scoreVal').textContent='0';
+  document.querySelectorAll('.resource-item').forEach(el=>{el.classList.remove('used');const st=el.querySelector('.status');if(st)st.textContent='';});
+  document.querySelectorAll('.stage-card').forEach(el=>el.classList.remove('active'));
+  document.querySelectorAll('.pipe-node,.pipe-arrow').forEach(el=>el.classList.remove('show','done','current'));
+  document.querySelectorAll('.zapata,.col-build,.truss-build,.crane,.truck,.worker,.nave-outline').forEach(el=>el.classList.remove('show'));
+  document.getElementById('kpiObra').classList.remove('show');
+  document.getElementById('progTrack').classList.remove('show');
+  document.getElementById('progBar').style.width='0';document.getElementById('progBar').textContent='0%';
+  document.getElementById('progPct').textContent='0%';
+  document.getElementById('kProg').textContent='0%';
+  document.getElementById('kCost').textContent='$0';
+  document.getElementById('kSaf').textContent='0';
+  document.getElementById('kQ').textContent='0';
+  document.getElementById('budgetBox').classList.remove('show');
+  document.getElementById('budgetRows').innerHTML='';
+  document.getElementById('ganttBox').classList.remove('show');
+  document.getElementById('ganttRows').innerHTML='';
+  document.getElementById('safetyBox').classList.remove('show');
+  document.getElementById('safetyItems').innerHTML='';
+  document.getElementById('qualityBox').classList.remove('show');
+  document.getElementById('qualityItems').innerHTML='';
+  document.getElementById('codeBlock').classList.remove('show');
+  document.getElementById('codeBlock').innerHTML='';
+  document.getElementById('quizBox').classList.remove('show');
+  document.getElementById('quizFb').className='quiz-fb';document.getElementById('quizFb').innerHTML='';
+  ['qA','qB','qC'].forEach(id=>{const b=document.getElementById(id);b.disabled=false;b.className='quiz-btn';});
+  ['bC0','bC1','bC2','bC3','bC4','bC5','bC6','bC7','bC8','bQuiz'].forEach((id,i)=>{
+    const b=document.getElementById(id);b.disabled=(i!==0);b.classList.remove('active','done');
+  });
+  document.getElementById('bC0').disabled=false;
+  document.getElementById('planTag').textContent='C0';
+  document.getElementById('qSummary').textContent='0/0 aprobadas';
+  document.getElementById('safetyDays').textContent='Días sin accidente: 0';
+  document.getElementById('ganttCurrent').textContent='Día 0';
+  clr();
+}
+</script>
+</body>
+</html>

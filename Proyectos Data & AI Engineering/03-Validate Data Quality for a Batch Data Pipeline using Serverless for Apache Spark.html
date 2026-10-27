@@ -1,0 +1,1118 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Lab: Data Quality Batch Pipeline - Serverless Spark</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        :root {
+            --bg: #0b1120;
+            --panel: #1e293b;
+            --panel-2: #334155;
+            --text: #f1f5f9;
+            --muted: #94a3b8;
+            --accent: #4285f4;
+            --gcp-yellow: #fbbc04;
+            --gcp-green: #34a853;
+            --gcp-red: #ea4335;
+            --spark: #e25a1c;       /* Apache Spark orange */
+            --bq: #4285f4;
+            --gcs: #fbbc04;
+            --dlq: #ea4335;
+            --border: #334155;
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+
+        body {
+            font-family: 'Segoe UI', Roboto, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            min-height: 100vh;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        header { text-align: center; margin-bottom: 20px; max-width: 900px; }
+        h1 { font-size: 1.5rem; font-weight: 300; letter-spacing: 1px; margin-bottom: 8px; }
+        h1 i { color: var(--spark); }
+        p.subtitle { color: var(--muted); font-size: 0.88rem; }
+        p.subtitle code { color: var(--gcp-yellow); background: var(--panel); padding: 2px 6px; border-radius: 4px; }
+
+        /* Barra de controles */
+        .controls {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+
+        .btn {
+            padding: 12px 16px;
+            border: 2px solid var(--border);
+            background: var(--panel);
+            color: var(--text);
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 0.82rem;
+            font-weight: 600;
+            transition: all 0.25s;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .btn:hover:not(:disabled) { transform: translateY(-2px); border-color: var(--accent); }
+        .btn:disabled { opacity: 0.35; cursor: not-allowed; }
+        .btn.active { border-color: var(--accent); background: rgba(66,133,244,0.15); box-shadow: 0 0 15px rgba(66,133,244,0.2); }
+        .btn.done { border-color: var(--gcp-green); background: rgba(52,168,83,0.12); color: var(--gcp-green); }
+
+        .btn i { font-size: 1rem; }
+
+        /* Layout principal: 3 columnas */
+        .workspace {
+            display: grid;
+            grid-template-columns: 290px 1fr 370px;
+            gap: 18px;
+            width: 100%;
+            max-width: 1600px;
+            align-items: start;
+        }
+
+        .panel {
+            background: var(--panel);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 16px;
+        }
+
+        .panel-title {
+            font-size: 0.72rem;
+            text-transform: uppercase;
+            letter-spacing: 1.5px;
+            color: var(--muted);
+            margin-bottom: 14px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        /* Columna 1: Recursos */
+        .resource-item {
+            background: var(--panel-2);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 9px 11px;
+            font-size: 0.75rem;
+            font-family: 'Courier New', monospace;
+            color: var(--muted);
+            display: flex;
+            flex-direction: column;
+            gap: 3px;
+            margin-bottom: 7px;
+            transition: all 0.4s ease;
+            opacity: 0.45;
+        }
+
+        .resource-item.used {
+            opacity: 1;
+            border-color: var(--accent);
+            color: var(--text);
+            background: rgba(66,133,244,0.08);
+        }
+
+        .resource-item .name { display: flex; align-items: center; gap: 6px; }
+        .resource-item .name i { font-size: 0.82rem; }
+        .resource-item .detail { font-size: 0.65rem; color: var(--accent); font-weight: bold; word-break: break-all; }
+        .resource-item .status { font-size: 0.62rem; color: var(--gcp-green); }
+
+        /* Columna 2: Canvas */
+        .canvas {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+
+        .stage-card {
+            background: var(--panel);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 16px;
+            opacity: 0.3;
+            transform: translateY(8px);
+            transition: all 0.5s ease;
+        }
+
+        .stage-card.active {
+            opacity: 1;
+            transform: translateY(0);
+            border-color: var(--accent);
+            box-shadow: 0 0 25px rgba(66,133,244,0.12);
+        }
+
+        .stage-card h2 {
+            font-size: 0.92rem;
+            margin-bottom: 12px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .stage-card h2 .tag {
+            font-size: 0.58rem;
+            padding: 3px 8px;
+            border-radius: 10px;
+            background: var(--panel-2);
+            color: var(--muted);
+            font-family: monospace;
+            margin-left: auto;
+        }
+
+        /* CSV preview */
+        .csv-preview {
+            display: none;
+            background: #000;
+            border-radius: 8px;
+            padding: 10px;
+            font-family: 'Courier New', monospace;
+            font-size: 0.65rem;
+            border: 1px solid var(--border);
+            margin-top: 8px;
+            overflow-x: auto;
+        }
+        .csv-preview.show { display: block; animation: fadeIn 0.4s ease; }
+        .csv-row { white-space: nowrap; padding: 1px 0; color: var(--muted); }
+        .csv-row.header { color: var(--gcp-yellow); font-weight: bold; border-bottom: 1px solid var(--border); padding-bottom: 3px; margin-bottom: 3px; }
+        .csv-row .invalid { color: var(--gcp-red); }
+
+        /* Script editor */
+        .script-editor {
+            display: none;
+            background: #0d1117;
+            border-radius: 8px;
+            padding: 10px;
+            font-family: 'Courier New', monospace;
+            font-size: 0.65rem;
+            border: 1px solid var(--border);
+            margin-top: 8px;
+            max-height: 280px;
+            overflow-y: auto;
+            line-height: 1.55;
+        }
+        .script-editor.show { display: block; animation: fadeIn 0.4s ease; }
+        .code-line { white-space: pre; }
+        .c-comment { color: #6a9955; }
+        .c-keyword { color: #c586c0; }
+        .c-string { color: #ce9178; }
+        .c-func { color: #dcdcaa; }
+        .c-var { color: #9cdcfe; }
+        .c-num { color: #b5cea8; }
+
+        /* Spark pipeline */
+        .spark-pipeline {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 5px;
+            padding: 10px 0;
+            position: relative;
+            flex-wrap: wrap;
+        }
+
+        .spark-node {
+            flex: 1;
+            min-width: 90px;
+            text-align: center;
+            padding: 10px 6px;
+            border-radius: 8px;
+            font-size: 0.68rem;
+            font-weight: 600;
+            border: 2px solid var(--border);
+            background: var(--panel-2);
+            color: var(--muted);
+            opacity: 0;
+            transform: scale(0.85);
+            transition: all 0.5s ease;
+        }
+
+        .spark-node.show { opacity: 1; transform: scale(1); }
+        .spark-node.source { border-color: var(--gcs); color: #fde68a; background: rgba(251,188,4,0.1); }
+        .spark-node.process { border-color: var(--spark); color: #fdba74; background: rgba(226,90,28,0.1); }
+        .spark-node.clean { border-color: var(--bq); color: #93c5fd; background: rgba(66,133,244,0.1); }
+        .spark-node.dlq { border-color: var(--dlq); color: #fca5a5; background: rgba(234,67,53,0.1); }
+
+        .spark-node .sub { display: block; font-size: 0.58rem; font-weight: normal; color: var(--muted); margin-top: 3px; font-family: monospace; }
+
+        .spark-arrow {
+            color: var(--border);
+            font-size: 0.9rem;
+            opacity: 0;
+            transition: opacity 0.4s ease;
+        }
+        .spark-arrow.show { opacity: 1; color: var(--accent); }
+
+        /* Split visual */
+        .split-container {
+            display: flex;
+            gap: 10px;
+            margin-top: 10px;
+        }
+        .split-box {
+            flex: 1;
+            padding: 10px;
+            border-radius: 8px;
+            text-align: center;
+            font-size: 0.7rem;
+            font-weight: 600;
+            opacity: 0;
+            transform: scale(0.9);
+            transition: all 0.5s ease;
+        }
+        .split-box.show { opacity: 1; transform: scale(1); }
+        .split-box.good { background: rgba(52,168,83,0.12); border: 2px solid var(--gcp-green); color: #86efac; }
+        .split-box.bad { background: rgba(234,67,53,0.12); border: 2px solid var(--dlq); color: #fca5a5; }
+        .split-box .count { display: block; font-size: 1.1rem; margin-top: 4px; font-family: monospace; }
+
+        /* Job progress */
+        .job-progress {
+            display: none;
+            margin-top: 10px;
+            background: var(--panel-2);
+            border-radius: 8px;
+            padding: 12px;
+        }
+        .job-progress.show { display: block; }
+        .progress-step {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-size: 0.7rem;
+            padding: 5px 0;
+            color: var(--muted);
+            font-family: monospace;
+        }
+        .progress-step .dot {
+            width: 10px; height: 10px;
+            border-radius: 50%;
+            background: var(--border);
+            flex-shrink: 0;
+            transition: all 0.3s;
+        }
+        .progress-step.ok .dot { background: var(--gcp-green); box-shadow: 0 0 8px var(--gcp-green); }
+        .progress-step.ok { color: var(--text); }
+        .progress-step.running .dot { background: var(--accent); animation: pulse 1s infinite; }
+        .progress-step.running { color: var(--accent); }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        /* BigQuery result */
+        .bq-result {
+            display: none;
+            margin-top: 8px;
+            background: #000;
+            border-radius: 8px;
+            padding: 12px;
+            font-family: 'Courier New', monospace;
+            font-size: 0.68rem;
+            border: 1px solid var(--border);
+        }
+        .bq-result.show { display: block; animation: fadeIn 0.4s ease; }
+        .bq-result .r-header {
+            display: flex;
+            justify-content: space-between;
+            color: var(--muted);
+            margin-bottom: 8px;
+            font-size: 0.65rem;
+            padding-bottom: 6px;
+            border-bottom: 1px solid var(--border);
+        }
+        .bq-result .r-header .count { color: var(--gcp-green); }
+        .bq-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.65rem;
+        }
+        .bq-table th {
+            background: var(--panel-2);
+            color: var(--muted);
+            font-size: 0.6rem;
+            padding: 5px 6px;
+            text-align: left;
+        }
+        .bq-table td {
+            padding: 4px 6px;
+            border-bottom: 1px solid rgba(51,65,85,0.4);
+            color: #93c5fd;
+            white-space: nowrap;
+        }
+        .bq-table td.num { color: var(--gcp-yellow); }
+
+        /* DLQ preview */
+        .dlq-preview {
+            display: none;
+            margin-top: 8px;
+            background: #1a0a0a;
+            border-radius: 8px;
+            padding: 12px;
+            font-family: 'Courier New', monospace;
+            font-size: 0.65rem;
+            border: 1px solid var(--dlq);
+        }
+        .dlq-preview.show { display: block; animation: fadeIn 0.4s ease; }
+        .dlq-preview .d-header {
+            color: var(--dlq);
+            margin-bottom: 8px;
+            font-size: 0.65rem;
+            padding-bottom: 6px;
+            border-bottom: 1px solid rgba(234,67,53,0.3);
+            display: flex;
+            justify-content: space-between;
+        }
+        .dlq-row { white-space: nowrap; padding: 2px 0; color: #fca5a5; }
+        .dlq-row.header { color: var(--dlq); font-weight: bold; }
+
+        /* Columna 3: Consola */
+        .console {
+            font-family: 'Courier New', monospace;
+            font-size: 0.72rem;
+            background: #000;
+            border-radius: 8px;
+            padding: 14px;
+            height: 100%;
+            min-height: 500px;
+            max-height: 820px;
+            overflow-y: auto;
+            border: 1px solid var(--border);
+        }
+
+        .log-line { margin-bottom: 5px; line-height: 1.45; animation: fadeIn 0.3s ease; word-wrap: break-word; }
+        .log-line.cmd { color: var(--gcp-green); font-weight: bold; }
+        .log-line.info { color: var(--muted); }
+        .log-line.success { color: var(--gcp-green); }
+        .log-line.warn { color: var(--gcp-yellow); }
+        .log-line.error { color: var(--gcp-red); }
+        .log-line.key { color: #93c5fd; }
+        .log-line.spark { color: var(--spark); }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateX(-5px); }
+            to { opacity: 1; transform: translateX(0); }
+        }
+
+        /* Responsive */
+        @media (max-width: 1250px) {
+            .workspace { grid-template-columns: 1fr; }
+        }
+
+        /* Score footer */
+        .score-bar {
+            margin-top: 20px;
+            display: flex;
+            gap: 20px;
+            align-items: center;
+            background: var(--panel);
+            padding: 12px 24px;
+            border-radius: 10px;
+            border: 1px solid var(--border);
+            font-size: 0.85rem;
+        }
+        .score-bar .score-item { display: flex; align-items: center; gap: 8px; }
+        .score-bar .score-item i { color: var(--gcp-yellow); }
+        .score-bar .score-val { color: var(--gcp-green); font-weight: bold; font-family: monospace; }
+    </style>
+</head>
+<body>
+
+    <header>
+        <h1><i class="fa-solid fa-broom"></i> Validate Data Quality for a Batch Data Pipeline</h1>
+        <p class="subtitle">Serverless for Apache Spark · PySpark · BigQuery · DLQ · Región: <code>us-central1</code></p>
+    </header>
+
+    <div class="controls">
+        <button class="btn" id="btnTask1" onclick="runTask1()">
+            <i class="fa-solid fa-magnifying-glass"></i> Task 1 · Explorar entorno
+        </button>
+        <button class="btn" id="btnTask2" onclick="runTask2()" disabled>
+            <i class="fa-solid fa-database"></i> Task 2 · Dataset BQ
+        </button>
+        <button class="btn" id="btnTask3" onclick="runTask3()" disabled>
+            <i class="fa-brands fa-python"></i> Task 3 · Script PySpark
+        </button>
+        <button class="btn" id="btnTask4" onclick="runTask4()" disabled>
+            <i class="fa-solid fa-play"></i> Task 4 · Run Batch
+        </button>
+        <button class="btn" id="btnTask5" onclick="runTask5()" disabled>
+            <i class="fa-solid fa-circle-check"></i> Task 5 · Verificar BQ
+        </button>
+        <button class="btn" id="btnTask6" onclick="runTask6()" disabled>
+            <i class="fa-solid fa-triangle-exclamation"></i> Task 6 · DLQ
+        </button>
+        <button class="btn" id="btnReset" onclick="resetAll()" style="border-color:#ef4444;color:#fca5a5;">
+            <i class="fa-solid fa-rotate-left"></i> Reiniciar
+        </button>
+    </div>
+
+    <div class="workspace">
+
+        <!-- COLUMNA 1: RECURSOS -->
+        <div class="panel">
+            <div class="panel-title"><i class="fa-solid fa-cubes"></i> Recursos (Terraform)</div>
+            <div id="resourceList">
+                <div class="resource-item" data-res="project">
+                    <div class="name"><i class="fa-solid fa-diagram-project" style="color:var(--accent)"></i> Project ID</div>
+                    <div class="detail">qwiklabs-gcp-02-xxxxx</div>
+                </div>
+                <div class="resource-item" data-res="network">
+                    <div class="name"><i class="fa-solid fa-network-wired" style="color:var(--accent)"></i> VPC + Subnet</div>
+                    <div class="detail">spark-network / spark-subnet</div>
+                </div>
+                <div class="resource-item" data-res="mainbucket">
+                    <div class="name"><i class="fa-solid fa-bucket" style="color:var(--gcs)"></i> Main Bucket</div>
+                    <div class="detail">...-main-bucket</div>
+                </div>
+                <div class="resource-item" data-res="dlqbucket">
+                    <div class="name"><i class="fa-solid fa-bucket" style="color:var(--dlq)"></i> DLQ Bucket</div>
+                    <div class="detail">...-dlq-bucket</div>
+                </div>
+                <div class="resource-item" data-res="csv">
+                    <div class="name"><i class="fa-solid fa-file-csv" style="color:var(--gcp-yellow)"></i> CSV fuente</div>
+                    <div class="detail">customer_contacts_1000.csv</div>
+                    <div class="status"></div>
+                </div>
+                <div class="resource-item" data-res="api">
+                    <div class="name"><i class="fa-solid fa-plug" style="color:var(--gcp-green)"></i> Dataproc API</div>
+                    <div class="detail">dataproc.googleapis.com</div>
+                </div>
+                <div class="resource-item" data-res="dataset">
+                    <div class="name"><i class="fa-solid fa-layer-group" style="color:var(--bq)"></i> BQ Dataset</div>
+                    <div class="detail">customer_data_clean</div>
+                    <div class="status"></div>
+                </div>
+                <div class="resource-item" data-res="script">
+                    <div class="name"><i class="fa-brands fa-python" style="color:var(--gcp-yellow)"></i> PySpark Script</div>
+                    <div class="detail">customer_dq.py</div>
+                    <div class="status"></div>
+                </div>
+                <div class="resource-item" data-res="batch">
+                    <div class="name"><i class="fa-solid fa-gears" style="color:var(--spark)"></i> Spark Batch Job</div>
+                    <div class="detail">customer-dq-job</div>
+                    <div class="status"></div>
+                </div>
+                <div class="resource-item" data-res="table">
+                    <div class="name"><i class="fa-solid fa-table" style="color:var(--bq)"></i> BQ Table (clean)</div>
+                    <div class="detail">customer_data_clean.valid_customers</div>
+                    <div class="status"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- COLUMNA 2: CANVAS -->
+        <div class="canvas">
+
+            <!-- Task 1: CSV preview -->
+            <div class="stage-card" id="stageCSV">
+                <h2><i class="fa-solid fa-file-csv" style="color:var(--gcp-yellow)"></i> CSV fuente (1,000 registros) <span class="tag">Task 1</span></h2>
+                <div class="csv-preview" id="csvPreview"></div>
+            </div>
+
+            <!-- Task 3: Script editor -->
+            <div class="stage-card" id="stageScript">
+                <h2><i class="fa-brands fa-python" style="color:var(--gcp-yellow)"></i> Script PySpark: customer_dq.py <span class="tag">Task 3</span></h2>
+                <div class="script-editor" id="scriptEditor"></div>
+            </div>
+
+            <!-- Task 4: Spark pipeline -->
+            <div class="stage-card" id="stagePipeline">
+                <h2><i class="fa-solid fa-diagram-project" style="color:var(--spark)"></i> Batch Pipeline DQ <span class="tag">Task 4</span></h2>
+                <div class="spark-pipeline" id="sparkPipeline">
+                    <div class="spark-node source" data-spark="read">
+                        <i class="fa-solid fa-cloud-arrow-down"></i> Read CSV
+                        <span class="sub">main-bucket/source</span>
+                    </div>
+                    <div class="spark-arrow" data-sparrow="1"><i class="fa-solid fa-arrow-right"></i></div>
+                    <div class="spark-node process" data-spark="validate">
+                        <i class="fa-solid fa-check-double"></i> Validate
+                        <span class="sub">id NOT NULL + email regex</span>
+                    </div>
+                    <div class="spark-arrow" data-sparrow="2"><i class="fa-solid fa-arrow-right"></i></div>
+                    <div class="spark-node process" data-spark="split">
+                        <i class="fa-solid fa-code-branch"></i> Split
+                        <span class="sub">dq_passed</span>
+                    </div>
+                </div>
+                <div class="split-container">
+                    <div class="split-box good" id="splitGood">
+                        <i class="fa-solid fa-circle-check"></i> Clean → BigQuery
+                        <span class="count">~800</span>
+                    </div>
+                    <div class="split-box bad" id="splitBad">
+                        <i class="fa-solid fa-triangle-exclamation"></i> Invalid → DLQ
+                        <span class="count">~200</span>
+                    </div>
+                </div>
+                <div class="job-progress" id="jobProgress">
+                    <div class="progress-step" data-step="submit"><span class="dot"></span> Batch submitted: customer-dq-job</div>
+                    <div class="progress-step" data-step="queue"><span class="dot"></span> Queued</div>
+                    <div class="progress-step" data-step="provision"><span class="dot"></span> Provisioning Spark workers (subnet: spark-subnet)</div>
+                    <div class="progress-step" data-step="running"><span class="dot"></span> Reading CSV and applying DQ rules</div>
+                    <div class="progress-step" data-step="write"><span class="dot"></span> Writing clean → BQ | invalid → DLQ</div>
+                    <div class="progress-step" data-step="succeeded"><span class="dot"></span> Batch job SUCCEEDED</div>
+                </div>
+            </div>
+
+            <!-- Task 5: BigQuery clean data -->
+            <div class="stage-card" id="stageBQ">
+                <h2><i class="fa-solid fa-database" style="color:var(--bq)"></i> Clean Data en BigQuery <span class="tag">Task 5</span></h2>
+                <div class="bq-result" id="bqResult">
+                    <div class="r-header">
+                        <span><i class="fa-solid fa-check-circle" style="color:var(--gcp-green);"></i> SELECT count(*) FROM valid_customers</span>
+                        <span class="count">~800 rows</span>
+                    </div>
+                    <table class="bq-table" id="bqTable">
+                        <thead>
+                            <tr>
+                                <th>id</th>
+                                <th>first_name</th>
+                                <th>last_name</th>
+                                <th>email</th>
+                            </tr>
+                        </thead>
+                        <tbody></tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Task 6: DLQ invalid records -->
+            <div class="stage-card" id="stageDLQ">
+                <h2><i class="fa-solid fa-triangle-exclamation" style="color:var(--dlq)"></i> DLQ: Invalid Records <span class="tag">Task 6</span></h2>
+                <div class="dlq-preview" id="dlqPreview">
+                    <div class="d-header">
+                        <span><i class="fa-solid fa-file-csv"></i> gs://...-dlq-bucket/errors/*.csv</span>
+                        <span style="color:var(--gcp-red);">~200 registros inválidos</span>
+                    </div>
+                    <div id="dlqRows"></div>
+                </div>
+            </div>
+
+        </div>
+
+        <!-- COLUMNA 3: CONSOLA -->
+        <div class="panel" style="padding:0; background:transparent; border:none;">
+            <div class="console" id="console">
+                <div class="log-line info">// Cloud Shell — Data Quality Batch Pipeline</div>
+                <div class="log-line info">// Presiona "Task 1" para comenzar</div>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- Score -->
+    <div class="score-bar">
+        <div class="score-item"><i class="fa-solid fa-star"></i> Score:</div>
+        <div class="score-item"><span class="score-val" id="scoreVal">0</span> / 100</div>
+        <div class="score-item" style="margin-left:auto; color:var(--muted); font-size:0.75rem;">
+            <i class="fa-solid fa-clock"></i> Intermediate · 1 hour
+        </div>
+    </div>
+
+    <script>
+        const consoleEl = document.getElementById('console');
+        const wait = (ms) => new Promise(r => setTimeout(r, ms));
+        let score = 0;
+        let projectId = 'qwiklabs-gcp-02-xxxxx';
+
+        function log(text, type = 'info') {
+            const div = document.createElement('div');
+            div.className = `log-line ${type}`;
+            div.innerHTML = text;
+            consoleEl.appendChild(div);
+            consoleEl.scrollTop = consoleEl.scrollHeight;
+        }
+
+        function clearConsole() {
+            consoleEl.innerHTML = '<div class="log-line info">// Consola reiniciada</div>';
+        }
+
+        function addScore(pts) {
+            score += pts;
+            document.getElementById('scoreVal').textContent = score;
+        }
+
+        function markResource(res, detail, status) {
+            const el = document.querySelector(`.resource-item[data-res="${res}"]`);
+            if (!el) return;
+            el.classList.add('used');
+            if (detail) {
+                const detailEl = el.querySelector('.detail');
+                if (detailEl) detailEl.textContent = detail;
+            }
+            if (status) {
+                const statusEl = el.querySelector('.status');
+                if (statusEl) statusEl.textContent = status;
+            }
+        }
+
+        // ==========================================================
+        // TASK 1: EXPLORE ENVIRONMENT
+        // ==========================================================
+        async function runTask1() {
+            document.getElementById('btnTask1').disabled = true;
+            clearConsole();
+            document.getElementById('stageCSV').classList.add('active');
+
+            log('// Task 1: Explorar entorno provisionado por Terraform', 'info');
+            await wait(500);
+            log('// Recursos detectados:', 'info');
+            log('  ✓ VPC: spark-network / subnet: spark-subnet', 'key');
+            log('  ✓ gs://' + projectId + '-main-bucket', 'key');
+            log('  ✓ gs://' + projectId + '-dlq-bucket', 'key');
+            await wait(700);
+            markResource('network');
+            markResource('mainbucket');
+            markResource('dlqbucket');
+
+            log('', 'info');
+            log('$ gsutil cat gs://' + projectId + '-main-bucket/source/customer_contacts_1000.csv | head -n 11', 'cmd');
+            await wait(800);
+
+            // CSV preview
+            const csvPreview = document.getElementById('csvPreview');
+            csvPreview.classList.add('show');
+
+            const header = ['id', 'first_name', 'last_name', 'email'];
+            const rows = [
+                ['1', 'John', 'Doe', 'john.doe@example.com'],
+                ['2', 'Jane', 'Smith', 'jane.smith@example.com'],
+                ['', 'Isabella', 'Smith', 'isabella@example.com'],
+                ['12', 'Michael', 'Johnson', ''],
+                ['21', 'Sophia', 'Williams', 'sophia.williams@example'],
+                ['3', 'Robert', 'Brown', 'robert.brown@example.com'],
+                ['4', 'Emily', 'Davis', 'emily.davis@example.com'],
+                ['', 'David', 'Miller', 'david@example.com'],
+                ['5', 'Sarah', 'Wilson', 'sarah.wilson@example.com'],
+                ['6', 'James', 'Moore', 'james.moore@example.com']
+            ];
+
+            const headerDiv = document.createElement('div');
+            headerDiv.className = 'csv-row header';
+            headerDiv.textContent = header.join(',');
+            csvPreview.appendChild(headerDiv);
+
+            for (const row of rows) {
+                const div = document.createElement('div');
+                div.className = 'csv-row';
+                const hasInvalid = (row[0] === '' || row[3] === '' || !row[3].includes('@') || !row[3].includes('.'));
+                if (hasInvalid) div.classList.add('invalid');
+                div.textContent = row.join(',');
+                csvPreview.appendChild(div);
+                await wait(100);
+            }
+
+            log('// ~20% de registros tienen imperfecciones (IDs nulos, emails malformados)', 'warn');
+            markResource('csv', 'customer_contacts_1000.csv', '✓ ~800 válidos / ~200 inválidos');
+            await wait(500);
+
+            log('', 'info');
+            log('$ gcloud services enable dataproc.googleapis.com', 'cmd');
+            await wait(1200);
+            log('Operation finished successfully.', 'success');
+            markResource('api', 'dataproc.googleapis.com', '✓ habilitada');
+            await wait(500);
+            addScore(15);
+
+            document.getElementById('btnTask1').classList.add('done');
+            document.getElementById('btnTask2').disabled = false;
+            document.getElementById('btnTask2').classList.add('active');
+        }
+
+        // ==========================================================
+        // TASK 2: CREATE BIGQUERY DATASET
+        // ==========================================================
+        async function runTask2() {
+            document.getElementById('btnTask2').disabled = true;
+
+            log('', 'info');
+            log('// Task 2: Crear dataset destino para datos limpios', 'info');
+            log('$ bq mk customer_data_clean', 'cmd');
+            await wait(1000);
+            log('Dataset \'' + projectId + ':customer_data_clean\' successfully created', 'success');
+            markResource('dataset', 'customer_data_clean', '✓ creado');
+            await wait(500);
+            addScore(15);
+
+            document.getElementById('btnTask2').classList.add('done');
+            document.getElementById('btnTask3').disabled = false;
+            document.getElementById('btnTask3').classList.add('active');
+        }
+
+        // ==========================================================
+        // TASK 3: CREATE PYSPARK SCRIPT
+        // ==========================================================
+        async function runTask3() {
+            document.getElementById('btnTask3').disabled = true;
+            document.getElementById('stageScript').classList.add('active');
+
+            log('', 'info');
+            log('// Task 3: Crear script PySpark con lógica de DQ', 'info');
+            log('$ nano customer_dq.py', 'cmd');
+            await wait(600);
+
+            const scriptEditor = document.getElementById('scriptEditor');
+            scriptEditor.classList.add('show');
+
+            const scriptLines = [
+                { text: '# Import necessary libraries', cls: 'c-comment' },
+                { text: 'import sys', cls: '' },
+                { text: 'from pyspark.sql import SparkSession', cls: '' },
+                { text: 'from pyspark.sql.functions import col, when', cls: '' },
+                { text: '', cls: '' },
+                { text: '# Validate command-line argument', cls: 'c-comment' },
+                { text: 'if len(sys.argv) != 2:', cls: '' },
+                { text: '    print("Usage: customer_dq.py <bq_dataset_table>")', cls: '' },
+                { text: '    sys.exit(-1)', cls: '' },
+                { text: '', cls: '' },
+                { text: 'bq_dataset_table = sys.argv[1]', cls: '' },
+                { text: '', cls: '' },
+                { text: '# Lab variables', cls: 'c-comment' },
+                { text: 'bq_project = "' + projectId + '"', cls: '' },
+                { text: 'gcs_source_path = f"gs://{bq_project}-main-bucket/source/customer_contacts_1000.csv"', cls: '' },
+                { text: 'gcs_dlq_path = f"gs://{bq_project}-dlq-bucket/errors/"', cls: '' },
+                { text: '', cls: '' },
+                { text: '# Initialize Spark Session', cls: 'c-comment' },
+                { text: 'spark = SparkSession.builder.appName("Customer DQ Check").getOrCreate()', cls: '' },
+                { text: '', cls: '' },
+                { text: '# Step 1: Read CSV from GCS', cls: 'c-comment' },
+                { text: 'df = spark.read.option("header", "true").option("inferSchema", "true").csv(gcs_source_path)', cls: '' },
+                { text: '', cls: '' },
+                { text: '# Step 2: DQ rules', cls: 'c-comment' },
+                { text: 'dq_rule_id = col("id").isNotNull()', cls: '' },
+                { text: 'email_regex = r"^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$"', cls: '' },
+                { text: 'dq_rule_email = col("email").isNotNull().__and__(col("email").rlike(email_regex))', cls: '' },
+                { text: '', cls: '' },
+                { text: '# Step 3: Split DataFrame', cls: 'c-comment' },
+                { text: 'df_with_dq = df.withColumn("dq_passed", when(dq_rule_id.__and__(dq_rule_email), True).otherwise(False))', cls: '' },
+                { text: 'clean_df = df_with_dq.filter(col("dq_passed") == True).drop("dq_passed")', cls: '' },
+                { text: 'error_df = df_with_dq.filter(col("dq_passed") == False).drop("dq_passed")', cls: '' },
+                { text: '', cls: '' },
+                { text: '# Step 4: Write clean to BigQuery', cls: 'c-comment' },
+                { text: 'temp_gcs_bucket_name = f"{bq_project}-main-bucket"', cls: '' },
+                { text: 'clean_df.write.format("bigquery").option("table", bq_dataset_table)', cls: '' },
+                { text: '    .option("temporaryGcsBucket", temp_gcs_bucket_name)', cls: '' },
+                { text: '    .option("project", bq_project).mode("overwrite").save()', cls: '' },
+                { text: '', cls: '' },
+                { text: '# Step 5: Write errors to DLQ', cls: 'c-comment' },
+                { text: 'error_df.repartition(1).write.option("header", "true").mode("overwrite").csv(gcs_dlq_path)', cls: '' },
+                { text: '', cls: '' },
+                { text: '# Stop the Spark session', cls: 'c-comment' },
+                { text: 'spark.stop()', cls: '' }
+            ];
+
+            for (const line of scriptLines) {
+                const div = document.createElement('div');
+                div.className = 'code-line ' + line.cls;
+                div.textContent = line.text || '\u00A0';
+                scriptEditor.appendChild(div);
+                scriptEditor.scrollTop = scriptEditor.scrollHeight;
+                await wait(30);
+            }
+
+            await wait(500);
+            log('// Script guardado. Nota crítica: la última línea debe ser spark.stop()', 'warn');
+            await wait(600);
+            log('', 'info');
+            log('$ gcloud storage cp customer_dq.py gs://' + projectId + '-main-bucket/scripts/', 'cmd');
+            await wait(1000);
+            log('Copying file://customer_dq.py [Content-Type=text/x-python]...', 'info');
+            await wait(600);
+            log('  Completed 1 file(s).', 'success');
+            markResource('script', 'customer_dq.py', '✓ subido a scripts/');
+            await wait(500);
+            addScore(20);
+
+            document.getElementById('btnTask3').classList.add('done');
+            document.getElementById('btnTask4').disabled = false;
+            document.getElementById('btnTask4').classList.add('active');
+        }
+
+        // ==========================================================
+        // TASK 4: CONFIGURE AND RUN BATCH PIPELINE
+        // ==========================================================
+        async function runTask4() {
+            document.getElementById('btnTask4').disabled = true;
+            document.getElementById('stagePipeline').classList.add('active');
+
+            log('', 'info');
+            log('// Task 4: Configurar y ejecutar el batch job', 'info');
+            log('$ export BQ_TABLE="valid_customers"', 'cmd');
+            log('$ export BQ_DATASET_TABLE="customer_data_clean.${BQ_TABLE}"', 'cmd');
+            log('$ export SUBNET_URI="projects/' + projectId + '/regions/us-central1/subnetworks/spark-subnet"', 'cmd');
+            await wait(800);
+
+            log('', 'info');
+            log('$ gcloud dataproc batches submit pyspark $PYSPARK_SCRIPT_PATH \\', 'cmd');
+            await wait(200);
+            log('    --version=2.1 \\', 'cmd');
+            await wait(200);
+            log('    --batch="customer-dq-job-$(date +%s)" \\', 'cmd');
+            await wait(200);
+            log('    --region=us-central1 \\', 'cmd');
+            await wait(200);
+            log('    --subnet=$SUBNET_URI \\', 'cmd');
+            await wait(200);
+            log('    --deps-bucket=gs://' + projectId + '-main-bucket \\', 'cmd');
+            await wait(200);
+            log('    -- \\', 'cmd');
+            await wait(200);
+            log('    $BQ_DATASET_TABLE', 'cmd');
+            await wait(1500);
+
+            log('', 'info');
+            log('Batch job submitted: customer-dq-job-1716234567', 'spark');
+            await wait(600);
+
+            // Mostrar nodos del pipeline
+            const readNode = document.querySelector('[data-spark="read"]');
+            readNode.classList.add('show');
+            log('Reading: gs://' + projectId + '-main-bucket/source/customer_contacts_1000.csv', 'info');
+            await wait(700);
+
+            document.querySelector('[data-sparrow="1"]').classList.add('show');
+            const validateNode = document.querySelector('[data-spark="validate"]');
+            validateNode.classList.add('show');
+            log('Applying DQ rules: id NOT NULL + email regex', 'spark');
+            await wait(800);
+
+            document.querySelector('[data-sparrow="2"]').classList.add('show');
+            const splitNode = document.querySelector('[data-spark="split"]');
+            splitNode.classList.add('show');
+            log('Splitting DataFrame on dq_passed', 'spark');
+            await wait(700);
+
+            // Mostrar split boxes
+            document.getElementById('splitGood').classList.add('show');
+            document.getElementById('splitBad').classList.add('show');
+            await wait(600);
+
+            // Job progress
+            const jobProgress = document.getElementById('jobProgress');
+            jobProgress.classList.add('show');
+            const steps = ['submit','queue','provision','running','write','succeeded'];
+
+            document.querySelector('[data-step="submit"]').classList.add('running');
+            log('JOB_MESSAGE: Batch submitted: customer-dq-job', 'spark');
+            await wait(1000);
+            document.querySelector('[data-step="submit"]').classList.remove('running');
+            document.querySelector('[data-step="submit"]').classList.add('ok');
+
+            document.querySelector('[data-step="queue"]').classList.add('running');
+            log('JOB_MESSAGE: Queued', 'spark');
+            await wait(900);
+            document.querySelector('[data-step="queue"]').classList.remove('running');
+            document.querySelector('[data-step="queue"]').classList.add('ok');
+
+            document.querySelector('[data-step="provision"]').classList.add('running');
+            log('JOB_MESSAGE: Provisioning Spark workers on spark-subnet', 'info');
+            await wait(1500);
+            document.querySelector('[data-step="provision"]').classList.remove('running');
+            document.querySelector('[data-step="provision"]').classList.add('ok');
+            markResource('network', 'spark-network / spark-subnet', '✓ usado por el job');
+
+            document.querySelector('[data-step="running"]').classList.add('running');
+            log('JOB_MESSAGE: Reading CSV and applying DQ rules', 'spark');
+            await wait(1800);
+            document.querySelector('[data-step="running"]').classList.remove('running');
+            document.querySelector('[data-step="running"]').classList.add('ok');
+
+            document.querySelector('[data-step="write"]').classList.add('running');
+            log('JOB_MESSAGE: Writing clean → BQ | invalid → DLQ', 'spark');
+            await wait(1500);
+            document.querySelector('[data-step="write"]').classList.remove('running');
+            document.querySelector('[data-step="write"]').classList.add('ok');
+
+            document.querySelector('[data-step="succeeded"]').classList.add('running');
+            log('JOB_MESSAGE: Batch job SUCCEEDED', 'success');
+            await wait(1000);
+            document.querySelector('[data-step="succeeded"]').classList.remove('running');
+            document.querySelector('[data-step="succeeded"]').classList.add('ok');
+            markResource('batch', 'customer-dq-job', '✓ SUCCEEDED');
+
+            log('', 'info');
+            log('// ~800 registros limpios → BigQuery | ~200 inválidos → DLQ', 'success');
+            await wait(500);
+            addScore(20);
+
+            document.getElementById('btnTask4').classList.add('done');
+            document.getElementById('btnTask5').disabled = false;
+            document.getElementById('btnTask5').classList.add('active');
+        }
+
+        // ==========================================================
+        // TASK 5: VERIFY CLEAN DATA IN BIGQUERY
+        // ==========================================================
+        async function runTask5() {
+            document.getElementById('btnTask5').disabled = true;
+            document.getElementById('stageBQ').classList.add('active');
+
+            log('', 'info');
+            log('// Task 5: Verificar datos limpios en BigQuery', 'info');
+            log('$ bq query --use_legacy_sql=false \\', 'cmd');
+            await wait(200);
+            log('  \'SELECT count(*) as total_clean_records FROM `customer_data_clean.valid_customers`;\'', 'cmd');
+            await wait(1200);
+
+            log('+---------------------+', 'info');
+            log('| total_clean_records |', 'key');
+            log('+---------------------+', 'info');
+            log('|                 798 |', 'success');
+            log('+---------------------+', 'info');
+            await wait(600);
+
+            log('', 'info');
+            log('// El count es ~800, confirmando que solo los registros válidos pasaron.', 'success');
+            await wait(500);
+
+            // Mostrar tabla BQ
+            const bqResult = document.getElementById('bqResult');
+            bqResult.classList.add('show');
+            const tbody = document.querySelector('#bqTable tbody');
+
+            const cleanRecords = [
+                { id: 1, fn: 'John', ln: 'Doe', email: 'john.doe@example.com' },
+                { id: 2, fn: 'Jane', ln: 'Smith', email: 'jane.smith@example.com' },
+                { id: 3, fn: 'Robert', ln: 'Brown', email: 'robert.brown@example.com' },
+                { id: 4, fn: 'Emily', ln: 'Davis', email: 'emily.davis@example.com' },
+                { id: 5, fn: 'Sarah', ln: 'Wilson', email: 'sarah.wilson@example.com' },
+                { id: 6, fn: 'James', ln: 'Moore', email: 'james.moore@example.com' },
+                { id: 7, fn: 'Patricia', ln: 'Taylor', email: 'patricia.taylor@example.com' },
+                { id: 8, fn: 'Christopher', ln: 'Anderson', email: 'chris.anderson@example.com' }
+            ];
+
+            for (const r of cleanRecords) {
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td class="num">${r.id}</td>
+                    <td>${r.fn}</td>
+                    <td>${r.ln}</td>
+                    <td>${r.email}</td>
+                `;
+                tbody.appendChild(tr);
+                await wait(80);
+            }
+
+            markResource('table', 'customer_data_clean.valid_customers', '✓ 798 rows');
+            await wait(500);
+            addScore(15);
+
+            document.getElementById('btnTask5').classList.add('done');
+            document.getElementById('btnTask6').disabled = false;
+            document.getElementById('btnTask6').classList.add('active');
+        }
+
+        // ==========================================================
+        // TASK 6: REVIEW INVALID RECORDS IN DLQ
+        // ==========================================================
+        async function runTask6() {
+            document.getElementById('btnTask6').disabled = true;
+            document.getElementById('stageDLQ').classList.add('active');
+
+            log('', 'info');
+            log('// Task 6: Revisar registros inválidos en la DLQ', 'info');
+            log('$ gcloud storage cat gs://' + projectId + '-dlq-bucket/errors/*.csv | head -n 11', 'cmd');
+            await wait(1200);
+
+            const dlqPreview = document.getElementById('dlqPreview');
+            dlqPreview.classList.add('show');
+            const dlqRows = document.getElementById('dlqRows');
+
+            const dlqData = [
+                { row: 'id,first_name,last_name,email', header: true },
+                { row: ',Isabella,Smith,isabella@example.com' },
+                { row: '12,Michael,Johnson,' },
+                { row: '21,Sophia,Williams,sophia.williams@example' },
+                { row: ',David,Miller,david@example.com' },
+                { row: '35,Daniel,Garcia,daniel.garcia@' },
+                { row: '42,Lisa,Martinez,lisa.martinez@example' },
+                { row: ',Nancy,Robinson,nancy@example.com' },
+                { row: '58,Paul,Clark,paul.clark@' },
+                { row: '63,Karen,Lewis,' },
+                { row: ',Betty,Walker,betty@example.com' }
+            ];
+
+            for (const d of dlqData) {
+                const div = document.createElement('div');
+                div.className = 'dlq-row' + (d.header ? ' header' : '');
+                div.textContent = d.row;
+                dlqRows.appendChild(div);
+                await wait(100);
+            }
+
+            log('', 'info');
+            log('// ~200 registros inválidos en la DLQ', 'warn');
+            log('// Razones: IDs nulos, emails vacíos, emails malformados', 'info');
+            log('// Estos registros pueden revisarse manualmente para remediación.', 'info');
+            await wait(800);
+
+            markResource('dlqbucket', '...-dlq-bucket/errors/', '✓ ~200 registros');
+            await wait(500);
+            addScore(15);
+
+            log('', 'info');
+            log('=== LAB COMPLETADO ===', 'success');
+            log('Score final: ' + score + ' / 100', 'success');
+            log('Batch DQ pipeline ejecutado: ~800 limpios → BQ | ~200 inválidos → DLQ', 'info');
+            log('Serverless Spark · VPC: spark-subnet · Script: customer_dq.py', 'key');
+
+            document.getElementById('btnTask6').classList.add('done');
+        }
+
+        // ==========================================================
+        // RESET
+        // ==========================================================
+        function resetAll() {
+            score = 0;
+            document.getElementById('scoreVal').textContent = '0';
+
+            document.querySelectorAll('.resource-item').forEach(el => {
+                el.classList.remove('used');
+                const statusEl = el.querySelector('.status');
+                if (statusEl) statusEl.textContent = '';
+            });
+
+            document.querySelectorAll('.stage-card').forEach(el => el.classList.remove('active'));
+            document.querySelectorAll('.spark-node').forEach(el => el.classList.remove('show'));
+            document.querySelectorAll('.spark-arrow').forEach(el => el.classList.remove('show'));
+            document.querySelectorAll('.progress-step').forEach(el => el.classList.remove('ok', 'running'));
+
+            document.getElementById('csvPreview').classList.remove('show');
+            document.getElementById('csvPreview').innerHTML = '';
+            document.getElementById('scriptEditor').classList.remove('show');
+            document.getElementById('scriptEditor').innerHTML = '';
+            document.getElementById('splitGood').classList.remove('show');
+            document.getElementById('splitBad').classList.remove('show');
+            document.getElementById('jobProgress').classList.remove('show');
+            document.getElementById('bqResult').classList.remove('show');
+            document.querySelector('#bqTable tbody').innerHTML = '';
+            document.getElementById('dlqPreview').classList.remove('show');
+            document.getElementById('dlqRows').innerHTML = '';
+
+            ['btnTask1','btnTask2','btnTask3','btnTask4','btnTask5','btnTask6'].forEach(id => {
+                const btn = document.getElementById(id);
+                btn.disabled = (id !== 'btnTask1');
+                btn.classList.remove('active', 'done');
+            });
+            document.getElementById('btnTask1').disabled = false;
+
+            clearConsole();
+        }
+    </script>
+</body>
+</html>

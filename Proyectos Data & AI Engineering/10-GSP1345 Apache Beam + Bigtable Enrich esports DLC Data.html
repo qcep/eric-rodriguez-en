@@ -1,0 +1,1184 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Lab GSP1345: Beam + Bigtable Enrichment esports DLC</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        :root {
+            --bg: #0b1120;
+            --panel: #1e293b;
+            --panel-2: #334155;
+            --text: #f1f5f9;
+            --muted: #94a3b8;
+            --accent: #4285f4;
+            --gcp-yellow: #fbbc04;
+            --gcp-green: #34a853;
+            --gcp-red: #ea4335;
+            --beam: #ff6d00;
+            --bigtable: #4285f4;
+            --pubsub: #7c3aed;
+            --pytorch: #ee4c2c;
+            --jupyter: #f37626;
+            --border: #334155;
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+
+        body {
+            font-family: 'Segoe UI', Roboto, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            min-height: 100vh;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        header { text-align: center; margin-bottom: 20px; max-width: 920px; }
+        h1 { font-size: 1.4rem; font-weight: 300; letter-spacing: 1px; margin-bottom: 8px; }
+        h1 i { color: var(--beam); }
+        p.subtitle { color: var(--muted); font-size: 0.88rem; }
+        p.subtitle code { color: var(--gcp-yellow); background: var(--panel); padding: 2px 6px; border-radius: 4px; }
+
+        .controls {
+            display: flex;
+            gap: 7px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+
+        .btn {
+            padding: 10px 13px;
+            border: 2px solid var(--border);
+            background: var(--panel);
+            color: var(--text);
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 0.75rem;
+            font-weight: 600;
+            transition: all 0.25s;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .btn:hover:not(:disabled) { transform: translateY(-2px); border-color: var(--beam); }
+        .btn:disabled { opacity: 0.35; cursor: not-allowed; }
+        .btn.active { border-color: var(--beam); background: rgba(255,109,0,0.15); box-shadow: 0 0 15px rgba(255,109,0,0.2); }
+        .btn.done { border-color: var(--gcp-green); background: rgba(52,168,83,0.12); color: var(--gcp-green); }
+
+        .btn i { font-size: 0.9rem; }
+
+        .workspace {
+            display: grid;
+            grid-template-columns: 290px 1fr 370px;
+            gap: 18px;
+            width: 100%;
+            max-width: 1620px;
+            align-items: start;
+        }
+
+        .panel {
+            background: var(--panel);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 16px;
+        }
+
+        .panel-title {
+            font-size: 0.72rem;
+            text-transform: uppercase;
+            letter-spacing: 1.5px;
+            color: var(--muted);
+            margin-bottom: 14px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .resource-item {
+            background: var(--panel-2);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 9px 11px;
+            font-size: 0.73rem;
+            font-family: 'Courier New', monospace;
+            color: var(--muted);
+            display: flex;
+            flex-direction: column;
+            gap: 3px;
+            margin-bottom: 7px;
+            transition: all 0.4s ease;
+            opacity: 0.45;
+        }
+
+        .resource-item.used {
+            opacity: 1;
+            border-color: var(--beam);
+            color: var(--text);
+            background: rgba(255,109,0,0.08);
+        }
+
+        .resource-item .name { display: flex; align-items: center; gap: 6px; }
+        .resource-item .name i { font-size: 0.82rem; }
+        .resource-item .detail { font-size: 0.64rem; color: var(--beam); font-weight: bold; word-break: break-all; }
+        .resource-item .status { font-size: 0.62rem; color: var(--gcp-green); }
+
+        .canvas {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+
+        .stage-card {
+            background: var(--panel);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 16px;
+            opacity: 0.3;
+            transform: translateY(8px);
+            transition: all 0.5s ease;
+        }
+
+        .stage-card.active {
+            opacity: 1;
+            transform: translateY(0);
+            border-color: var(--beam);
+            box-shadow: 0 0 25px rgba(255,109,0,0.12);
+        }
+
+        .stage-card h2 {
+            font-size: 0.92rem;
+            margin-bottom: 12px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .stage-card h2 .tag {
+            font-size: 0.58rem;
+            padding: 3px 8px;
+            border-radius: 10px;
+            background: var(--panel-2);
+            color: var(--muted);
+            font-family: monospace;
+            margin-left: auto;
+        }
+
+        /* Notebook visual */
+        .notebook-visual {
+            display: none;
+            background: #0d1117;
+            border-radius: 8px;
+            border: 1px solid var(--border);
+            margin-top: 8px;
+            overflow: hidden;
+        }
+        .notebook-visual.show { display: block; animation: fadeIn 0.4s ease; }
+        .nb-toolbar {
+            background: var(--panel-2);
+            padding: 6px 10px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 0.65rem;
+            color: var(--muted);
+            font-family: monospace;
+            border-bottom: 1px solid var(--border);
+        }
+        .nb-toolbar .kernel {
+            background: var(--jupyter);
+            color: white;
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-weight: bold;
+            font-size: 0.6rem;
+        }
+        .nb-body {
+            padding: 10px;
+            max-height: 260px;
+            overflow-y: auto;
+            font-family: 'Courier New', monospace;
+            font-size: 0.63rem;
+            line-height: 1.5;
+        }
+        .nb-cell {
+            border-left: 3px solid var(--border);
+            padding: 6px 8px;
+            margin-bottom: 6px;
+            background: rgba(15,23,42,0.5);
+            opacity: 0;
+            animation: fadeIn 0.3s ease forwards;
+        }
+        .nb-cell.code { border-left-color: var(--jupyter); }
+        .nb-cell.output { border-left-color: var(--gcp-green); background: rgba(52,168,83,0.05); }
+        .nb-cell .cell-prompt { color: var(--jupyter); font-weight: bold; margin-right: 4px; }
+        .nb-cell .cell-code { color: #9cdcfe; white-space: pre-wrap; }
+        .nb-cell .cell-out { color: var(--gcp-green); white-space: pre-wrap; }
+        .c-comment { color: #6a9955; }
+        .c-keyword { color: #c586c0; }
+        .c-string { color: #ce9178; }
+        .c-func { color: #dcdcaa; }
+
+        /* Model training visual */
+        .training-visual {
+            display: none;
+            background: #0d1117;
+            border-radius: 8px;
+            padding: 12px;
+            border: 1px solid var(--pytorch);
+            margin-top: 8px;
+        }
+        .training-visual.show { display: block; animation: fadeIn 0.4s ease; }
+        .train-header {
+            color: var(--pytorch);
+            font-size: 0.65rem;
+            margin-bottom: 10px;
+            padding-bottom: 6px;
+            border-bottom: 1px solid rgba(238,76,44,0.3);
+            display: flex;
+            justify-content: space-between;
+        }
+        .train-row {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-family: 'Courier New', monospace;
+            font-size: 0.63rem;
+            padding: 3px 0;
+            color: var(--muted);
+        }
+        .train-row .epoch { color: var(--text); min-width: 60px; }
+        .train-row .loss { color: var(--gcp-yellow); min-width: 70px; }
+        .train-bar {
+            flex: 1;
+            height: 5px;
+            background: var(--panel-2);
+            border-radius: 3px;
+            overflow: hidden;
+        }
+        .train-bar .fill {
+            height: 100%;
+            background: var(--pytorch);
+            border-radius: 3px;
+            transition: width 0.4s ease;
+        }
+
+        /* Bigtable visual */
+        .bigtable-visual {
+            display: none;
+            background: #0d1117;
+            border-radius: 8px;
+            padding: 12px;
+            border: 1px solid var(--bigtable);
+            margin-top: 8px;
+            font-family: 'Courier New', monospace;
+            font-size: 0.64rem;
+        }
+        .bigtable-visual.show { display: block; animation: fadeIn 0.4s ease; }
+        .bt-header {
+            color: var(--bigtable);
+            font-size: 0.65rem;
+            margin-bottom: 10px;
+            padding-bottom: 6px;
+            border-bottom: 1px solid rgba(66,133,244,0.3);
+            display: flex;
+            justify-content: space-between;
+        }
+        .bt-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        .bt-table th {
+            background: var(--panel-2);
+            color: var(--muted);
+            font-size: 0.58rem;
+            padding: 4px 6px;
+            text-align: left;
+        }
+        .bt-table td {
+            padding: 3px 6px;
+            border-bottom: 1px solid rgba(51,65,85,0.3);
+            color: #93c5fd;
+            white-space: nowrap;
+        }
+        .bt-table td.cf { color: var(--gcp-yellow); }
+
+        /* Pub/Sub messages */
+        .pubsub-messages {
+            display: none;
+            background: #0d1117;
+            border-radius: 8px;
+            padding: 10px;
+            border: 1px solid var(--pubsub);
+            margin-top: 8px;
+            font-family: 'Courier New', monospace;
+            font-size: 0.62rem;
+            max-height: 180px;
+            overflow-y: auto;
+        }
+        .pubsub-messages.show { display: block; animation: fadeIn 0.4s ease; }
+        .ps-msg {
+            background: rgba(124,58,237,0.08);
+            border-left: 3px solid var(--pubsub);
+            padding: 5px 8px;
+            margin-bottom: 4px;
+            border-radius: 3px;
+            opacity: 0;
+            animation: fadeIn 0.3s ease forwards;
+        }
+        .ps-msg .msg-id { color: var(--pubsub); font-weight: bold; }
+        .ps-msg .msg-body { color: var(--muted); font-size: 0.58rem; margin-top: 2px; }
+
+        /* Pipeline visual */
+        .pipeline-visual {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 5px;
+            padding: 15px 0;
+            flex-wrap: wrap;
+            position: relative;
+        }
+
+        .pipeline-node {
+            flex: 1;
+            min-width: 95px;
+            text-align: center;
+            padding: 11px 7px;
+            border-radius: 9px;
+            font-size: 0.66rem;
+            font-weight: 600;
+            border: 2px solid var(--border);
+            background: var(--panel-2);
+            color: var(--muted);
+            opacity: 0;
+            transform: scale(0.85);
+            transition: all 0.5s ease;
+            position: relative;
+        }
+
+        .pipeline-node.show { opacity: 1; transform: scale(1); }
+        .pipeline-node.source { border-color: var(--pubsub); color: #c4b5fd; background: rgba(124,58,237,0.1); }
+        .pipeline-node.enrich { border-color: var(--bigtable); color: #93c5fd; background: rgba(66,133,244,0.1); }
+        .pipeline-node.ml { border-color: var(--pytorch); color: #fca5a5; background: rgba(238,76,44,0.1); }
+        .pipeline-node.sink { border-color: var(--gcp-green); color: #86efac; background: rgba(52,168,83,0.1); }
+
+        .pipeline-node .sub { display: block; font-size: 0.55rem; font-weight: normal; color: var(--muted); margin-top: 3px; font-family: monospace; }
+        .pipeline-node .count {
+            display: block;
+            font-size: 0.62rem;
+            color: var(--gcp-green);
+            margin-top: 4px;
+            font-weight: bold;
+            font-family: monospace;
+        }
+
+        .pipeline-arrow {
+            color: var(--border);
+            font-size: 0.9rem;
+            opacity: 0;
+            transition: opacity 0.4s ease;
+        }
+        .pipeline-arrow.show { opacity: 1; color: var(--beam); }
+        .pipeline-arrow.flowing { color: var(--gcp-green); animation: pulse 1s infinite; }
+
+        /* Inference output */
+        .inference-output {
+            display: none;
+            background: #0d1117;
+            border-radius: 8px;
+            padding: 12px;
+            border: 1px solid var(--gcp-green);
+            margin-top: 8px;
+            font-family: 'Courier New', monospace;
+            font-size: 0.65rem;
+        }
+        .inference-output.show { display: block; animation: fadeIn 0.4s ease; }
+        .inf-header {
+            color: var(--gcp-green);
+            margin-bottom: 8px;
+            font-size: 0.64rem;
+            padding-bottom: 6px;
+            border-bottom: 1px solid rgba(52,168,83,0.3);
+            display: flex;
+            justify-content: space-between;
+        }
+        .rec-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 5px 8px;
+            margin-bottom: 4px;
+            background: rgba(52,168,83,0.06);
+            border-left: 3px solid var(--gcp-green);
+            border-radius: 4px;
+            opacity: 0;
+            animation: fadeIn 0.3s ease forwards;
+        }
+        .rec-item .rank {
+            width: 20px; height: 20px;
+            border-radius: 50%;
+            background: var(--gcp-green);
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            font-size: 0.6rem;
+        }
+        .rec-item .item { color: var(--text); font-weight: bold; }
+        .rec-item .score { margin-left: auto; color: var(--gcp-yellow); font-size: 0.6rem; }
+
+        /* Job progress */
+        .job-progress {
+            display: none;
+            margin-top: 10px;
+            background: var(--panel-2);
+            border-radius: 8px;
+            padding: 12px;
+        }
+        .job-progress.show { display: block; }
+        .progress-step {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-size: 0.68rem;
+            padding: 4px 0;
+            color: var(--muted);
+            font-family: monospace;
+        }
+        .progress-step .dot {
+            width: 9px; height: 9px;
+            border-radius: 50%;
+            background: var(--border);
+            flex-shrink: 0;
+            transition: all 0.3s;
+        }
+        .progress-step.ok .dot { background: var(--gcp-green); box-shadow: 0 0 8px var(--gcp-green); }
+        .progress-step.ok { color: var(--text); }
+        .progress-step.running .dot { background: var(--beam); animation: pulse 1s infinite; }
+        .progress-step.running { color: var(--beam); }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        .console {
+            font-family: 'Courier New', monospace;
+            font-size: 0.69rem;
+            background: #000;
+            border-radius: 8px;
+            padding: 14px;
+            height: 100%;
+            min-height: 500px;
+            max-height: 920px;
+            overflow-y: auto;
+            border: 1px solid var(--border);
+        }
+
+        .log-line { margin-bottom: 5px; line-height: 1.45; animation: fadeIn 0.3s ease; word-wrap: break-word; }
+        .log-line.cmd { color: var(--gcp-green); font-weight: bold; }
+        .log-line.info { color: var(--muted); }
+        .log-line.success { color: var(--gcp-green); }
+        .log-line.warn { color: var(--gcp-yellow); }
+        .log-line.error { color: var(--gcp-red); }
+        .log-line.key { color: #93c5fd; }
+        .log-line.beam { color: var(--beam); }
+        .log-line.bt { color: #93c5fd; }
+        .log-line.ml { color: #fca5a5; }
+        .log-line.pubsub { color: #c4b5fd; }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateX(-5px); }
+            to { opacity: 1; transform: translateX(0); }
+        }
+
+        @media (max-width: 1250px) {
+            .workspace { grid-template-columns: 1fr; }
+            .pipeline-visual { flex-wrap: wrap; }
+            .pipeline-arrow { display: none; }
+        }
+
+        .score-bar {
+            margin-top: 20px;
+            display: flex;
+            gap: 20px;
+            align-items: center;
+            background: var(--panel);
+            padding: 12px 24px;
+            border-radius: 10px;
+            border: 1px solid var(--border);
+            font-size: 0.85rem;
+        }
+        .score-bar .score-item { display: flex; align-items: center; gap: 8px; }
+        .score-bar .score-item i { color: var(--gcp-yellow); }
+        .score-bar .score-val { color: var(--gcp-green); font-weight: bold; font-family: monospace; }
+    </style>
+</head>
+<body>
+
+    <header>
+        <h1><i class="fa-solid fa-gamepad"></i> Apache Beam + Bigtable: Enrich esports DLC Data</h1>
+        <p class="subtitle">Lab GSP1345 · Pub/Sub → Bigtable Enrichment → PyTorch → Dataflow · Galactic Grand Prix</p>
+    </header>
+
+    <div class="controls">
+        <button class="btn" id="btnTask1" onclick="runTask1()"><i class="fa-solid fa-cubes"></i> T1 · Recursos</button>
+        <button class="btn" id="btnTask2" onclick="runTask2()" disabled><i class="fa-brands fa-python"></i> T2 · Notebook</button>
+        <button class="btn" id="btnTask3" onclick="runTask3()" disabled><i class="fa-solid fa-box-open"></i> T3 · Packages</button>
+        <button class="btn" id="btnTask4" onclick="runTask4()" disabled><i class="fa-solid fa-brain"></i> T4 · Train</button>
+        <button class="btn" id="btnTask5" onclick="runTask5()" disabled><i class="fa-solid fa-database"></i> T5 · Bigtable+PubSub</button>
+        <button class="btn" id="btnTask6" onclick="runTask6()" disabled><i class="fa-solid fa-code-branch"></i> T6 · Enrichment</button>
+        <button class="btn" id="btnTask7" onclick="runTask7()" disabled><i class="fa-solid fa-play"></i> T7 · Inference</button>
+        <button class="btn" id="btnReset" onclick="resetAll()" style="border-color:#ef4444;color:#fca5a5;"><i class="fa-solid fa-rotate-left"></i></button>
+    </div>
+
+    <div class="workspace">
+
+        <!-- COLUMNA 1: RECURSOS -->
+        <div class="panel">
+            <div class="panel-title"><i class="fa-solid fa-cubes"></i> Recursos del Lab</div>
+            <div id="resourceList">
+                <div class="resource-item" data-res="project">
+                    <div class="name"><i class="fa-solid fa-diagram-project" style="color:var(--accent)"></i> Project ID</div>
+                    <div class="detail">qwiklabs-gcp-02-xxxxx</div>
+                </div>
+                <div class="resource-item" data-res="bigtable">
+                    <div class="name"><i class="fa-solid fa-server" style="color:var(--bigtable)"></i> Bigtable Instance</div>
+                    <div class="detail">instance / my-cluster</div>
+                    <div class="status"></div>
+                </div>
+                <div class="resource-item" data-res="topic">
+                    <div class="name"><i class="fa-solid fa-tower-broadcast" style="color:var(--pubsub)"></i> Pub/Sub Topic</div>
+                    <div class="detail">customer-data</div>
+                    <div class="status"></div>
+                </div>
+                <div class="resource-item" data-res="subscription">
+                    <div class="name"><i class="fa-solid fa-rss" style="color:var(--pubsub)"></i> Subscription</div>
+                    <div class="detail">customer-data_sub</div>
+                    <div class="status"></div>
+                </div>
+                <div class="resource-item" data-res="notebook">
+                    <div class="name"><i class="fa-solid fa-book" style="color:var(--jupyter)"></i> Workbench Notebook</div>
+                    <div class="detail">esports_dlc_enrichment.ipynb</div>
+                    <div class="status"></div>
+                </div>
+                <div class="resource-item" data-res="packages">
+                    <div class="name"><i class="fa-brands fa-python" style="color:var(--pytorch)"></i> Python Packages</div>
+                    <div class="detail">torch + apache-beam[gcp]</div>
+                    <div class="status"></div>
+                </div>
+                <div class="resource-item" data-res="model">
+                    <div class="name"><i class="fa-solid fa-brain" style="color:var(--pytorch)"></i> PyTorch Model</div>
+                    <div class="detail">DLC Recommender</div>
+                    <div class="status"></div>
+                </div>
+                <div class="resource-item" data-res="bttable">
+                    <div class="name"><i class="fa-solid fa-table" style="color:var(--bigtable)"></i> Bigtable Table</div>
+                    <div class="detail">customer_data</div>
+                    <div class="status"></div>
+                </div>
+                <div class="resource-item" data-res="pipeline">
+                    <div class="name"><i class="fa-solid fa-diagram-project" style="color:var(--beam)"></i> Dataflow Pipeline</div>
+                    <div class="detail">DLC recommendations</div>
+                    <div class="status"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- COLUMNA 2: CANVAS -->
+        <div class="canvas">
+
+            <!-- Task 2-4: Notebook visual -->
+            <div class="stage-card" id="stageNotebook">
+                <h2><i class="fa-solid fa-book" style="color:var(--jupyter)"></i> JupyterLab Notebook <span class="tag" id="nbTag">Task 2</span></h2>
+                <div class="notebook-visual" id="notebookVisual">
+                    <div class="nb-toolbar">
+                        <span><i class="fa-solid fa-circle" style="color:var(--gcp-green); font-size:0.5rem;"></i> Python 3 (Local)</span>
+                        <span style="margin-left:auto;" id="nbCellCount">0 cells executed</span>
+                    </div>
+                    <div class="nb-body" id="nbBody"></div>
+                </div>
+                <div class="training-visual" id="trainingVisual">
+                    <div class="train-header">
+                        <span><i class="fa-solid fa-brain"></i> PyTorch Training · DLC Recommender</span>
+                        <span id="trainEpoch">Epoch 0/10</span>
+                    </div>
+                    <div id="trainRows"></div>
+                </div>
+            </div>
+
+            <!-- Task 5: Bigtable + Pub/Sub -->
+            <div class="stage-card" id="stageBigtable">
+                <h2><i class="fa-solid fa-database" style="color:var(--bigtable)"></i> Bigtable + Pub/Sub <span class="tag">Task 5</span></h2>
+                <div class="bigtable-visual" id="bigtableVisual">
+                    <div class="bt-header">
+                        <span><i class="fa-solid fa-table"></i> customer_data</span>
+                        <span>3 column families</span>
+                    </div>
+                    <table class="bt-table">
+                        <thead>
+                            <tr>
+                                <th>row_key</th>
+                                <th>customer_info</th>
+                                <th>purchase_history</th>
+                                <th>demographics</th>
+                            </tr>
+                        </thead>
+                        <tbody id="btTableBody"></tbody>
+                    </table>
+                </div>
+                <div class="pubsub-messages" id="pubsubMessages"></div>
+            </div>
+
+            <!-- Task 6-7: Pipeline -->
+            <div class="stage-card" id="stagePipeline">
+                <h2><i class="fa-solid fa-diagram-project" style="color:var(--beam)"></i> Dataflow Enrichment Pipeline <span class="tag">Tasks 6-7</span></h2>
+                <div class="pipeline-visual" id="pipelineVisual">
+                    <div class="pipeline-node source" data-pnode="pubsub">
+                        <i class="fa-solid fa-tower-broadcast"></i> Pub/Sub
+                        <span class="sub">customer-data</span>
+                        <span class="count" data-count="pubsub"></span>
+                    </div>
+                    <div class="pipeline-arrow" data-parrow="1"><i class="fa-solid fa-arrow-right"></i></div>
+                    <div class="pipeline-node enrich" data-pnode="bigtable">
+                        <i class="fa-solid fa-database"></i> Bigtable Enrich
+                        <span class="sub">enrichment handler</span>
+                        <span class="count" data-count="bigtable"></span>
+                    </div>
+                    <div class="pipeline-arrow" data-parrow="2"><i class="fa-solid fa-arrow-right"></i></div>
+                    <div class="pipeline-node ml" data-pnode="pytorch">
+                        <i class="fa-solid fa-brain"></i> PyTorch Model
+                        <span class="sub">PyTorchModelHandlerTensor</span>
+                        <span class="count" data-count="pytorch"></span>
+                    </div>
+                    <div class="pipeline-arrow" data-parrow="3"><i class="fa-solid fa-arrow-right"></i></div>
+                    <div class="pipeline-node sink" data-pnode="output">
+                        <i class="fa-solid fa-lightbulb"></i> Recommendations
+                        <span class="sub">top-3 DLC items</span>
+                        <span class="count" data-count="output"></span>
+                    </div>
+                </div>
+                <div class="job-progress" id="jobProgress">
+                    <div class="progress-step" data-step="submit"><span class="dot"></span> Dataflow job submitted</div>
+                    <div class="progress-step" data-step="workers"><span class="dot"></span> Workers started</div>
+                    <div class="progress-step" data-step="running"><span class="dot"></span> Pipeline running: Pub/Sub → Bigtable → PyTorch</div>
+                    <div class="progress-step" data-step="inference"><span class="dot"></span> Model inference generating recommendations</div>
+                    <div class="progress-step" data-step="succeeded"><span class="dot"></span> Recommendations emitted ✓</div>
+                </div>
+                <div class="inference-output" id="inferenceOutput">
+                    <div class="inf-header">
+                        <span><i class="fa-solid fa-check-circle"></i> Recommendations generadas</span>
+                        <span style="color:var(--gcp-yellow);">player_4521</span>
+                    </div>
+                    <div id="recsList"></div>
+                </div>
+            </div>
+
+        </div>
+
+        <!-- COLUMNA 3: CONSOLA -->
+        <div class="panel" style="padding:0; background:transparent; border:none;">
+            <div class="console" id="console">
+                <div class="log-line info">// Cloud Shell — Beam + Bigtable Enrichment</div>
+                <div class="log-line info">// Presiona "T1 · Recursos" para comenzar</div>
+            </div>
+        </div>
+
+    </div>
+
+    <div class="score-bar">
+        <div class="score-item"><i class="fa-solid fa-star"></i> Score:</div>
+        <div class="score-item"><span class="score-val" id="scoreVal">0</span> / 100</div>
+        <div class="score-item" style="margin-left:auto; color:var(--muted); font-size:0.75rem;">
+            <i class="fa-solid fa-clock"></i> Lab GSP1345 · 1h 30min
+        </div>
+    </div>
+
+    <script>
+        const consoleEl = document.getElementById('console');
+        const wait = (ms) => new Promise(r => setTimeout(r, ms));
+        let score = 0;
+        let nbCells = 0;
+        const projectId = 'qwiklabs-gcp-02-xxxxx';
+
+        function log(text, type = 'info') {
+            const div = document.createElement('div');
+            div.className = `log-line ${type}`;
+            div.innerHTML = text;
+            consoleEl.appendChild(div);
+            consoleEl.scrollTop = consoleEl.scrollHeight;
+        }
+
+        function clearConsole() {
+            consoleEl.innerHTML = '<div class="log-line info">// Consola reiniciada</div>';
+        }
+
+        function addScore(pts) {
+            score += pts;
+            document.getElementById('scoreVal').textContent = score;
+        }
+
+        function markResource(res, detail, status) {
+            const el = document.querySelector(`.resource-item[data-res="${res}"]`);
+            if (!el) return;
+            el.classList.add('used');
+            if (detail) {
+                const d = el.querySelector('.detail');
+                if (d) d.textContent = detail;
+            }
+            if (status) {
+                const s = el.querySelector('.status');
+                if (s) s.textContent = status;
+            }
+        }
+
+        async function addCell(type, content) {
+            nbCells++;
+            document.getElementById('nbCellCount').textContent = nbCells + ' cells executed';
+            const nbBody = document.getElementById('nbBody');
+            const div = document.createElement('div');
+            div.className = 'nb-cell ' + (type === 'code' ? 'code' : 'output');
+            if (type === 'code') {
+                div.innerHTML = `<span class="cell-prompt">In [${nbCells}]:</span> <span class="cell-code">${content}</span>`;
+            } else {
+                div.innerHTML = `<span class="cell-out">${content}</span>`;
+            }
+            nbBody.appendChild(div);
+            nbBody.scrollTop = nbBody.scrollHeight;
+            await wait(120);
+        }
+
+        // ==========================================================
+        // TASK 1: CREATE GCP RESOURCES
+        // ==========================================================
+        async function runTask1() {
+            document.getElementById('btnTask1').disabled = true;
+            clearConsole();
+
+            log('// Task 1: Crear recursos de Google Cloud', 'info');
+            log('$ export PROJECT_ID="' + projectId + '"', 'cmd');
+            await wait(400);
+            log('$ echo ${PROJECT_ID}', 'cmd');
+            log(projectId, 'key');
+            await wait(500);
+
+            log('', 'info');
+            log('$ gcloud bigtable instances create instance \\', 'cmd');
+            await wait(200);
+            log('    --display-name="My Bigtable Instance" \\', 'cmd');
+            await wait(200);
+            log('    --cluster-config=id=my-cluster,zone=us-central1-a,nodes=1', 'cmd');
+            await wait(1200);
+            log('✓ Bigtable instance creada.', 'success');
+            markResource('bigtable', 'instance / my-cluster', '✓ creada');
+            await wait(400);
+
+            log('', 'info');
+            log('$ gcloud pubsub topics create customer-data', 'cmd');
+            await wait(800);
+            log('Created topic [projects/' + projectId + '/topics/customer-data].', 'success');
+            markResource('topic', 'customer-data', '✓ creado');
+            await wait(300);
+
+            log('', 'info');
+            log('$ gcloud pubsub subscriptions create customer-data_sub --topic=customer-data', 'cmd');
+            await wait(800);
+            log('Created subscription [projects/' + projectId + '/subscriptions/customer-data_sub].', 'success');
+            markResource('subscription', 'customer-data_sub', '✓ creada');
+            await wait(400);
+
+            addScore(15);
+            document.getElementById('btnTask1').classList.add('done');
+            document.getElementById('btnTask2').disabled = false;
+            document.getElementById('btnTask2').classList.add('active');
+        }
+
+        // ==========================================================
+        // TASK 2: OPEN NOTEBOOK
+        // ==========================================================
+        async function runTask2() {
+            document.getElementById('btnTask2').disabled = true;
+            document.getElementById('stageNotebook').classList.add('active');
+            document.getElementById('notebookVisual').classList.add('show');
+            document.getElementById('nbTag').textContent = 'Task 2';
+
+            log('', 'info');
+            log('// Task 2: Abrir notebook en Workbench', 'info');
+            log('// Agent Platform > Notebooks > Workbench', 'info');
+            await wait(700);
+            log('  Instance: instance → Open JupyterLab', 'key');
+            await wait(600);
+            log('✓ JupyterLab cargado.', 'success');
+            await wait(400);
+            log('// Kernel: Python 3 (Local)', 'key');
+            await wait(500);
+            markResource('notebook', 'esports_dlc_enrichment.ipynb', '✓ kernel: Python 3');
+
+            await addCell('code', '# Welcome to esports DLC Enrichment Lab');
+            await addCell('code', '# Galactic Grand Prix · Cymbal Gaming');
+
+            await wait(400);
+            addScore(10);
+            document.getElementById('btnTask2').classList.add('done');
+            document.getElementById('btnTask3').disabled = false;
+            document.getElementById('btnTask3').classList.add('active');
+        }
+
+        // ==========================================================
+        // TASK 3: INSTALL PACKAGES + CONFIGURE
+        // ==========================================================
+        async function runTask3() {
+            document.getElementById('btnTask3').disabled = true;
+            document.getElementById('nbTag').textContent = 'Task 3';
+
+            log('', 'info');
+            log('// Task 3: Instalar paquetes y configurar notebook', 'info');
+
+            await addCell('code', '!pip install torch apache-beam[gcp] --quiet');
+            await wait(1200);
+            log('$ pip install torch apache-beam[gcp] --quiet', 'cmd');
+            await wait(800);
+            await addCell('output', '✓ Packages installed successfully');
+            log('✓ torch + apache-beam[gcp] instalados.', 'success');
+            markResource('packages', 'torch + apache-beam[gcp]', '✓ instalados');
+            await wait(500);
+
+            log('', 'info');
+            log('// Configurar variables de entorno:', 'key');
+            await addCell('code', 'PROJECT_ID = "' + projectId + '"\nINSTANCE_ID = "instance"\nTABLE_ID = "customer_data"');
+            await wait(600);
+            log('  PROJECT_ID = ' + projectId, 'key');
+            log('  INSTANCE_ID = instance', 'key');
+            log('  TABLE_ID = customer_data', 'key');
+            await wait(500);
+
+            await addCell('code', 'from google.cloud import bigtable, pubsub_v1\nimport apache_beam as beam\nimport torch');
+            await wait(600);
+            await addCell('output', '✓ Imports OK');
+            log('✓ Notebook configurado.', 'success');
+
+            addScore(10);
+            document.getElementById('btnTask3').classList.add('done');
+            document.getElementById('btnTask4').disabled = false;
+            document.getElementById('btnTask4').classList.add('active');
+        }
+
+        // ==========================================================
+        // TASK 4: TRAIN THE MODEL
+        // ==========================================================
+        async function runTask4() {
+            document.getElementById('btnTask4').disabled = true;
+            document.getElementById('nbTag').textContent = 'Task 4';
+            document.getElementById('trainingVisual').classList.add('show');
+
+            log('', 'info');
+            log('// Task 4: Entrenar modelo PyTorch', 'info');
+
+            await addCell('code', '# Build dataset + convert to tensors');
+            await wait(400);
+            await addCell('code', 'dataset = build_dlc_purchase_dataset()\ntensors = dataset_to_tensors(dataset)');
+            await wait(600);
+            await addCell('output', '✓ Dataset: 10,000 purchases · 50 DLC items');
+            log('Dataset: 10,000 purchases → tensors', 'key');
+            await wait(500);
+
+            await addCell('code', 'model = DLCRecommender(input_dim=128, hidden_dim=64, output_dim=50)');
+            await wait(500);
+            await addCell('code', 'optimizer = torch.optim.Adam(model.parameters(), lr=0.001)');
+            await wait(400);
+
+            // Training visual
+            log('', 'info');
+            log('// Entrenando modelo...', 'ml');
+            const trainRows = document.getElementById('trainRows');
+            const epochs = 10;
+            for (let e = 1; e <= epochs; e++) {
+                const loss = (2.5 * Math.exp(-e * 0.3) + 0.1 + Math.random() * 0.1).toFixed(4);
+                const acc = Math.min(95, 45 + e * 5 + Math.random() * 2).toFixed(1);
+                const pct = e / epochs * 100;
+
+                const row = document.createElement('div');
+                row.className = 'train-row';
+                row.innerHTML = `<span class="epoch">Epoch ${e}</span><span class="loss">loss=${loss}</span><div class="train-bar"><div class="fill" style="width:${pct}%"></div></div><span style="color:var(--gcp-green);">${acc}%</span>`;
+                trainRows.appendChild(row);
+
+                document.getElementById('trainEpoch').textContent = `Epoch ${e}/${epochs}`;
+                await wait(250);
+            }
+
+            await addCell('output', '✓ Training complete · final accuracy: 94.2%');
+            log('✓ Modelo entrenado. Accuracy final: 94.2%', 'success');
+            markResource('model', 'DLC Recommender', '✓ accuracy 94.2%');
+            await wait(500);
+
+            addScore(15);
+            document.getElementById('btnTask4').classList.add('done');
+            document.getElementById('btnTask5').disabled = false;
+            document.getElementById('btnTask5').classList.add('active');
+        }
+
+        // ==========================================================
+        // TASK 5: BIGTABLE TABLE + PUB/SUB MESSAGES
+        // ==========================================================
+        async function runTask5() {
+            document.getElementById('btnTask5').disabled = true;
+            document.getElementById('nbTag').textContent = 'Task 5';
+            document.getElementById('stageBigtable').classList.add('active');
+            document.getElementById('bigtableVisual').classList.add('show');
+
+            log('', 'info');
+            log('// Task 5: Configurar Bigtable y publicar a Pub/Sub', 'info');
+
+            await addCell('code', '# Create Bigtable table with column families\ntable = instance.table("customer_data")\ntable.create(column_families={"customer_info", "purchase_history", "demographics"})');
+            await wait(800);
+            log('✓ Tabla customer_data creada con 3 column families.', 'success');
+            markResource('bttable', 'customer_data', '✓ 3 column families');
+
+            // Poblar tabla
+            const btBody = document.getElementById('btTableBody');
+            const btRows = [
+                { key: 'player_4521', info: 'Cymbal_Gamer_42', purchase: 'DLC_Pack_Alpha', demo: 'M/25/US' },
+                { key: 'player_4522', info: 'GalacticPro99', purchase: 'DLC_Pack_Beta', demo: 'F/32/UK' },
+                { key: 'player_4523', info: 'NovaStriker', purchase: 'DLC_Pack_Alpha', demo: 'M/19/JP' },
+                { key: 'player_4524', info: 'CosmicRacer', purchase: 'DLC_Pack_Gamma', demo: 'F/28/DE' },
+                { key: 'player_4525', info: 'StarVoyager', purchase: 'DLC_Pack_Beta', demo: 'M/35/CA' }
+            ];
+            for (const r of btRows) {
+                const tr = document.createElement('tr');
+                tr.innerHTML = `<td class="cf">${r.key}</td><td>${r.info}</td><td>${r.purchase}</td><td>${r.demo}</td>`;
+                btBody.appendChild(tr);
+                await wait(150);
+            }
+            log('  → 5 filas insertadas en customer_data', 'key');
+            await wait(500);
+
+            // Publicar a Pub/Sub
+            log('', 'info');
+            log('// Publicar mensajes de compra a Pub/Sub', 'info');
+            await addCell('code', 'publisher.publish(topic_path, data=json.dumps(purchase))');
+            await wait(500);
+
+            const pubsubMessages = document.getElementById('pubsubMessages');
+            pubsubMessages.classList.add('show');
+            const messages = [
+                { id: 'msg_001', body: '{"player_id":"player_4521","dlc_id":"DLC_Pack_Alpha"}' },
+                { id: 'msg_002', body: '{"player_id":"player_4526","dlc_id":"DLC_Pack_Beta"}' },
+                { id: 'msg_003', body: '{"player_id":"player_4527","dlc_id":"DLC_Pack_Alpha"}' }
+            ];
+            for (const m of messages) {
+                const div = document.createElement('div');
+                div.className = 'ps-msg';
+                div.innerHTML = `<span class="msg-id">${m.id}</span><div class="msg-body">${m.body}</div>`;
+                pubsubMessages.appendChild(div);
+                log('Published: ' + m.id, 'pubsub');
+                await wait(300);
+            }
+
+            await wait(500);
+            addScore(15);
+            document.getElementById('btnTask5').classList.add('done');
+            document.getElementById('btnTask6').disabled = false;
+            document.getElementById('btnTask6').classList.add('active');
+        }
+
+        // ==========================================================
+        // TASK 6: BIGTABLE ENRICHMENT HANDLER + TRANSFORM
+        // ==========================================================
+        async function runTask6() {
+            document.getElementById('btnTask6').disabled = true;
+            document.getElementById('nbTag').textContent = 'Task 6';
+            document.getElementById('stagePipeline').classList.add('active');
+
+            log('', 'info');
+            log('// Task 6: Bigtable enrichment handler + transform', 'info');
+
+            await addCell('code', '# Bigtable enrichment handler\nfrom apache_beam.io.gcp.bigtableio import BigtableEnrichmentHandler');
+            await wait(600);
+            await addCell('code', 'enrichment_handler = BigtableEnrichmentHandler(\n    project_id=PROJECT_ID,\n    instance_id=INSTANCE_ID,\n    table_id=TABLE_ID,\n    row_key="player_id")');
+            await wait(700);
+            log('✓ BigtableEnrichmentHandler configurado.', 'success');
+            await wait(400);
+
+            await addCell('code', '# Bigtable enrichment transform\nfrom apache_beam.transforms.enrichment import Enrichment');
+            await wait(500);
+            await addCell('code', 'enriched = (pipeline\n    | "ReadPubSub" >> beam.io.ReadFromPubSub(subscription=SUB_PATH)\n    | "Enrich" >> Enrichment(enrichment_handler))');
+            await wait(700);
+            log('✓ Bigtable Enrichment transform definido.', 'success');
+
+            // Mostrar nodos
+            document.querySelector('[data-pnode="pubsub"]').classList.add('show');
+            await wait(400);
+            document.querySelector('[data-parrow="1"]').classList.add('show');
+            document.querySelector('[data-pnode="bigtable"]').classList.add('show');
+            await wait(500);
+
+            log('// Pipeline: Pub/Sub → Bigtable Enrichment', 'beam');
+            await wait(400);
+            document.querySelector('[data-parrow="2"]').classList.add('show');
+            document.querySelector('[data-pnode="pytorch"]').classList.add('show');
+            await wait(400);
+
+            addScore(15);
+            document.getElementById('btnTask6').classList.add('done');
+            document.getElementById('btnTask7').disabled = false;
+            document.getElementById('btnTask7').classList.add('active');
+        }
+
+        // ==========================================================
+        // TASK 7: RUN INFERENCE + PIPELINE
+        // ==========================================================
+        async function runTask7() {
+            document.getElementById('btnTask7').disabled = true;
+            document.getElementById('nbTag').textContent = 'Task 7';
+
+            log('', 'info');
+            log('// Task 7: Run inference + pipeline', 'info');
+
+            await addCell('code', '# PyTorchModelHandlerTensor for inference\nfrom apache_beam.ml.inference.pytorch_inference import PyTorchModelHandlerTensor');
+            await wait(600);
+            await addCell('code', 'model_handler = PyTorchModelHandlerTensor(\n    state_dict_path="gs://bucket/model.pt",\n    model_class=DLCRecommender)');
+            await wait(700);
+            log('✓ PyTorchModelHandlerTensor configurado.', 'ml');
+            await wait(400);
+
+            await addCell('code', 'recommendations = (enriched\n    | "Inference" >> RunInference(model_handler)\n    | "FormatTop3" >> beam.Map(top_k_recommendations, k=3))');
+            await wait(700);
+
+            // Mostrar nodo output
+            document.querySelector('[data-parrow="3"]').classList.add('show');
+            document.querySelector('[data-pnode="output"]').classList.add('show');
+            await wait(500);
+
+            // Job progress
+            log('', 'info');
+            log('// Ejecutando pipeline en Dataflow...', 'beam');
+            const jp = document.getElementById('jobProgress');
+            jp.classList.add('show');
+
+            const steps = ['submit','workers','running','inference','succeeded'];
+            for (const s of steps) {
+                const el = document.querySelector(`[data-step="${s}"]`);
+                el.classList.add('running');
+                if (s === 'submit') log('JOB_MESSAGE: Submitted to Dataflow', 'beam');
+                if (s === 'workers') log('JOB_MESSAGE: Workers started (e2-standard-2)', 'beam');
+                if (s === 'running') log('JOB_MESSAGE: Pipeline running', 'beam');
+                if (s === 'inference') log('Running inference with PyTorch model...', 'ml');
+                if (s === 'succeeded') log('Recommendations emitted!', 'success');
+                await wait(1200);
+                el.classList.remove('running');
+                el.classList.add('ok');
+            }
+
+            // Contadores de nodos
+            const counts = { pubsub: 3, bigtable: 3, pytorch: 3, output: 3 };
+            for (const [key, val] of Object.entries(counts)) {
+                const el = document.querySelector(`[data-count="${key}"]`);
+                if (el) el.textContent = val + ' events';
+                await wait(200);
+            }
+
+            // Flechas flowing
+            document.querySelector('[data-parrow="1"]').classList.add('flowing');
+            document.querySelector('[data-parrow="2"]').classList.add('flowing');
+            document.querySelector('[data-parrow="3"]').classList.add('flowing');
+            await wait(500);
+
+            // Recomendaciones (top 3)
+            log('', 'info');
+            log('// Top-3 recomendaciones para player_4521:', 'success');
+            const infOutput = document.getElementById('inferenceOutput');
+            infOutput.classList.add('show');
+            const recsList = document.getElementById('recsList');
+            const recs = [
+                { rank: 1, item: 'DLC_Pack_Beta', score: 0.92 },
+                { rank: 2, item: 'DLC_Pack_Gamma', score: 0.87 },
+                { rank: 3, item: 'DLC_Pack_Delta', score: 0.81 }
+            ];
+            for (const r of recs) {
+                const div = document.createElement('div');
+                div.className = 'rec-item';
+                div.innerHTML = `<span class="rank">${r.rank}</span><span class="item">${r.item}</span><span class="score">score: ${r.score}</span>`;
+                recsList.appendChild(div);
+                log(`  #${r.rank} ${r.item} (${r.score})`, 'success');
+                await wait(400);
+            }
+
+            markResource('pipeline', 'DLC recommendations', '✓ Running → 3 recs');
+            await wait(500);
+
+            addScore(20);
+
+            log('', 'info');
+            log('=== LAB COMPLETADO ===', 'success');
+            log('Score final: ' + score + ' / 100', 'success');
+            log('Pipeline: Pub/Sub → Bigtable Enrichment → PyTorch Inference → Top-3 Recommendations', 'info');
+            log('⚠️ IMPORTANTE: detener manualmente la celda del pipeline en el notebook', 'warn');
+
+            document.getElementById('btnTask7').classList.add('done');
+        }
+
+        // ==========================================================
+        // RESET
+        // ==========================================================
+        function resetAll() {
+            score = 0;
+            nbCells = 0;
+            document.getElementById('scoreVal').textContent = '0';
+
+            document.querySelectorAll('.resource-item').forEach(el => {
+                el.classList.remove('used');
+                const s = el.querySelector('.status');
+                if (s) s.textContent = '';
+            });
+
+            document.querySelector('[data-res="bigtable"] .detail').textContent = 'instance / my-cluster';
+            document.querySelector('[data-res="topic"] .detail').textContent = 'customer-data';
+            document.querySelector('[data-res="subscription"] .detail').textContent = 'customer-data_sub';
+            document.querySelector('[data-res="notebook"] .detail').textContent = 'esports_dlc_enrichment.ipynb';
+            document.querySelector('[data-res="packages"] .detail').textContent = 'torch + apache-beam[gcp]';
+            document.querySelector('[data-res="model"] .detail').textContent = 'DLC Recommender';
+            document.querySelector('[data-res="bttable"] .detail').textContent = 'customer_data';
+            document.querySelector('[data-res="pipeline"] .detail').textContent = 'DLC recommendations';
+
+            document.querySelectorAll('.stage-card').forEach(el => el.classList.remove('active'));
+            document.querySelectorAll('.pipeline-node').forEach(el => el.classList.remove('show', 'running'));
+            document.querySelectorAll('.pipeline-arrow').forEach(el => el.classList.remove('show', 'flowing'));
+            document.querySelectorAll('.progress-step').forEach(el => el.classList.remove('ok', 'running'));
+            document.querySelectorAll('.count').forEach(el => el.textContent = '');
+
+            document.getElementById('notebookVisual').classList.remove('show');
+            document.getElementById('nbBody').innerHTML = '';
+            document.getElementById('nbCellCount').textContent = '0 cells executed';
+            document.getElementById('nbTag').textContent = 'Task 2';
+            document.getElementById('trainingVisual').classList.remove('show');
+            document.getElementById('trainRows').innerHTML = '';
+            document.getElementById('trainEpoch').textContent = 'Epoch 0/10';
+            document.getElementById('bigtableVisual').classList.remove('show');
+            document.getElementById('btTableBody').innerHTML = '';
+            document.getElementById('pubsubMessages').classList.remove('show');
+            document.getElementById('pubsubMessages').innerHTML = '';
+            document.getElementById('jobProgress').classList.remove('show');
+            document.getElementById('inferenceOutput').classList.remove('show');
+            document.getElementById('recsList').innerHTML = '';
+
+            ['btnTask1','btnTask2','btnTask3','btnTask4','btnTask5','btnTask6','btnTask7'].forEach(id => {
+                const btn = document.getElementById(id);
+                btn.disabled = (id !== 'btnTask1');
+                btn.classList.remove('active', 'done');
+            });
+            document.getElementById('btnTask1').disabled = false;
+
+            clearConsole();
+        }
+    </script>
+</body>
+</html>

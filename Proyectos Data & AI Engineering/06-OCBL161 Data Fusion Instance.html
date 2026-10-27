@@ -1,0 +1,980 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Lab: Getting Started with Cloud Data Fusion</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        :root {
+            --bg: #0b1120;
+            --panel: #1e293b;
+            --panel-2: #334155;
+            --text: #f1f5f9;
+            --muted: #94a3b8;
+            --accent: #4285f4;
+            --gcp-yellow: #fbbc04;
+            --gcp-green: #34a853;
+            --gcp-red: #ea4335;
+            --cdf: #ff6d00;
+            --hub: #8b5cf6;
+            --bq: #4285f4;
+            --border: #334155;
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+
+        body {
+            font-family: 'Segoe UI', Roboto, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            min-height: 100vh;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        header { text-align: center; margin-bottom: 20px; max-width: 900px; }
+        h1 { font-size: 1.5rem; font-weight: 300; letter-spacing: 1px; margin-bottom: 8px; }
+        h1 i { color: var(--cdf); }
+        p.subtitle { color: var(--muted); font-size: 0.88rem; }
+        p.subtitle code { color: var(--gcp-yellow); background: var(--panel); padding: 2px 6px; border-radius: 4px; }
+
+        .controls {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+
+        .btn {
+            padding: 11px 15px;
+            border: 2px solid var(--border);
+            background: var(--panel);
+            color: var(--text);
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 0.8rem;
+            font-weight: 600;
+            transition: all 0.25s;
+            display: flex;
+            align-items: center;
+            gap: 7px;
+        }
+
+        .btn:hover:not(:disabled) { transform: translateY(-2px); border-color: var(--cdf); }
+        .btn:disabled { opacity: 0.35; cursor: not-allowed; }
+        .btn.active { border-color: var(--cdf); background: rgba(255,109,0,0.15); box-shadow: 0 0 15px rgba(255,109,0,0.2); }
+        .btn.done { border-color: var(--gcp-green); background: rgba(52,168,83,0.12); color: var(--gcp-green); }
+
+        .btn i { font-size: 0.95rem; }
+
+        .workspace {
+            display: grid;
+            grid-template-columns: 290px 1fr 370px;
+            gap: 18px;
+            width: 100%;
+            max-width: 1600px;
+            align-items: start;
+        }
+
+        .panel {
+            background: var(--panel);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 16px;
+        }
+
+        .panel-title {
+            font-size: 0.72rem;
+            text-transform: uppercase;
+            letter-spacing: 1.5px;
+            color: var(--muted);
+            margin-bottom: 14px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .resource-item {
+            background: var(--panel-2);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 9px 11px;
+            font-size: 0.74rem;
+            font-family: 'Courier New', monospace;
+            color: var(--muted);
+            display: flex;
+            flex-direction: column;
+            gap: 3px;
+            margin-bottom: 7px;
+            transition: all 0.4s ease;
+            opacity: 0.45;
+        }
+
+        .resource-item.used {
+            opacity: 1;
+            border-color: var(--cdf);
+            color: var(--text);
+            background: rgba(255,109,0,0.08);
+        }
+
+        .resource-item .name { display: flex; align-items: center; gap: 6px; }
+        .resource-item .name i { font-size: 0.82rem; }
+        .resource-item .detail { font-size: 0.65rem; color: var(--cdf); font-weight: bold; word-break: break-all; }
+        .resource-item .status { font-size: 0.62rem; color: var(--gcp-green); }
+
+        .canvas {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+
+        .stage-card {
+            background: var(--panel);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 16px;
+            opacity: 0.3;
+            transform: translateY(8px);
+            transition: all 0.5s ease;
+        }
+
+        .stage-card.active {
+            opacity: 1;
+            transform: translateY(0);
+            border-color: var(--cdf);
+            box-shadow: 0 0 25px rgba(255,109,0,0.12);
+        }
+
+        .stage-card h2 {
+            font-size: 0.92rem;
+            margin-bottom: 12px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .stage-card h2 .tag {
+            font-size: 0.58rem;
+            padding: 3px 8px;
+            border-radius: 10px;
+            background: var(--panel-2);
+            color: var(--muted);
+            font-family: monospace;
+            margin-left: auto;
+        }
+
+        /* Instance card */
+        .instance-card {
+            display: none;
+            background: #0d1117;
+            border-radius: 8px;
+            padding: 12px;
+            font-family: 'Courier New', monospace;
+            font-size: 0.68rem;
+            border: 1px solid var(--cdf);
+            margin-top: 8px;
+        }
+        .instance-card.show { display: block; animation: fadeIn 0.4s ease; }
+        .instance-card .i-header {
+            color: var(--cdf);
+            font-size: 0.65rem;
+            margin-bottom: 8px;
+            padding-bottom: 6px;
+            border-bottom: 1px solid rgba(255,109,0,0.3);
+            display: flex;
+            justify-content: space-between;
+        }
+        .instance-prop {
+            display: flex;
+            justify-content: space-between;
+            padding: 3px 0;
+            border-bottom: 1px solid rgba(51,65,85,0.3);
+        }
+        .instance-prop:last-child { border-bottom: none; }
+        .instance-prop .k { color: var(--muted); }
+        .instance-prop .v { color: var(--gcp-yellow); font-weight: bold; }
+
+        /* Hub visual */
+        .hub-visual {
+            display: none;
+            background: #0d1117;
+            border-radius: 8px;
+            padding: 12px;
+            font-size: 0.72rem;
+            border: 1px solid var(--hub);
+            margin-top: 8px;
+        }
+        .hub-visual.show { display: block; animation: fadeIn 0.4s ease; }
+        .hub-card {
+            background: rgba(139,92,246,0.1);
+            border: 1px solid var(--hub);
+            border-radius: 8px;
+            padding: 12px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 8px;
+            opacity: 0;
+            animation: fadeIn 0.4s ease forwards;
+        }
+        .hub-card .hub-icon {
+            width: 40px; height: 40px;
+            border-radius: 8px;
+            background: rgba(139,92,246,0.2);
+            color: var(--hub);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.2rem;
+            flex-shrink: 0;
+        }
+        .hub-card .hub-info { flex: 1; }
+        .hub-card .hub-info .title { color: var(--text); font-weight: bold; font-size: 0.75rem; }
+        .hub-card .hub-info .desc { color: var(--muted); font-size: 0.62rem; margin-top: 2px; }
+        .hub-card .hub-action {
+            background: var(--hub);
+            color: white;
+            padding: 5px 12px;
+            border-radius: 5px;
+            font-size: 0.65rem;
+            font-weight: bold;
+        }
+
+        /* Pipeline visual */
+        .pipeline-visual {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 5px;
+            padding: 15px 0;
+            flex-wrap: wrap;
+        }
+
+        .pipeline-node {
+            flex: 1;
+            min-width: 95px;
+            text-align: center;
+            padding: 11px 7px;
+            border-radius: 9px;
+            font-size: 0.68rem;
+            font-weight: 600;
+            border: 2px solid var(--border);
+            background: var(--panel-2);
+            color: var(--muted);
+            opacity: 0;
+            transform: scale(0.85);
+            transition: all 0.5s ease;
+            position: relative;
+        }
+
+        .pipeline-node.show { opacity: 1; transform: scale(1); }
+        .pipeline-node.source { border-color: var(--gcp-yellow); color: #fde68a; background: rgba(251,188,4,0.1); }
+        .pipeline-node.transform { border-color: var(--cdf); color: #fdba74; background: rgba(255,109,0,0.1); }
+        .pipeline-node.sink { border-color: var(--bq); color: #93c5fd; background: rgba(66,133,244,0.1); }
+
+        .pipeline-node .sub { display: block; font-size: 0.56rem; font-weight: normal; color: var(--muted); margin-top: 3px; font-family: monospace; }
+        .pipeline-node .records {
+            display: block;
+            font-size: 0.6rem;
+            color: var(--gcp-green);
+            margin-top: 4px;
+            font-weight: bold;
+        }
+
+        .pipeline-arrow {
+            color: var(--border);
+            font-size: 0.95rem;
+            opacity: 0;
+            transition: opacity 0.4s ease;
+        }
+        .pipeline-arrow.show { opacity: 1; color: var(--cdf); }
+
+        /* Job progress */
+        .job-progress {
+            display: none;
+            margin-top: 10px;
+            background: var(--panel-2);
+            border-radius: 8px;
+            padding: 12px;
+        }
+        .job-progress.show { display: block; }
+        .progress-step {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-size: 0.69rem;
+            padding: 4px 0;
+            color: var(--muted);
+            font-family: monospace;
+        }
+        .progress-step .dot {
+            width: 9px; height: 9px;
+            border-radius: 50%;
+            background: var(--border);
+            flex-shrink: 0;
+            transition: all 0.3s;
+        }
+        .progress-step.ok .dot { background: var(--gcp-green); box-shadow: 0 0 8px var(--gcp-green); }
+        .progress-step.ok { color: var(--text); }
+        .progress-step.running .dot { background: var(--cdf); animation: pulse 1s infinite; }
+        .progress-step.running { color: var(--cdf); }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        /* BigQuery result */
+        .bq-result {
+            display: none;
+            margin-top: 8px;
+            background: #000;
+            border-radius: 8px;
+            padding: 12px;
+            font-family: 'Courier New', monospace;
+            font-size: 0.65rem;
+            border: 1px solid var(--border);
+        }
+        .bq-result.show { display: block; animation: fadeIn 0.4s ease; }
+        .bq-result .r-header {
+            display: flex;
+            justify-content: space-between;
+            color: var(--muted);
+            margin-bottom: 8px;
+            font-size: 0.62rem;
+            padding-bottom: 6px;
+            border-bottom: 1px solid var(--border);
+        }
+        .bq-result .r-header .count { color: var(--gcp-green); }
+        .bq-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        .bq-table th {
+            background: var(--panel-2);
+            color: var(--muted);
+            font-size: 0.58rem;
+            padding: 4px 5px;
+            text-align: left;
+            position: sticky;
+            top: 0;
+        }
+        .bq-table td {
+            padding: 3px 5px;
+            border-bottom: 1px solid rgba(51,65,85,0.3);
+            color: #93c5fd;
+            white-space: nowrap;
+        }
+        .bq-table td.num { color: var(--gcp-yellow); }
+
+        .console {
+            font-family: 'Courier New', monospace;
+            font-size: 0.71rem;
+            background: #000;
+            border-radius: 8px;
+            padding: 14px;
+            height: 100%;
+            min-height: 500px;
+            max-height: 820px;
+            overflow-y: auto;
+            border: 1px solid var(--border);
+        }
+
+        .log-line { margin-bottom: 5px; line-height: 1.45; animation: fadeIn 0.3s ease; word-wrap: break-word; }
+        .log-line.cmd { color: var(--gcp-green); font-weight: bold; }
+        .log-line.info { color: var(--muted); }
+        .log-line.success { color: var(--gcp-green); }
+        .log-line.warn { color: var(--gcp-yellow); }
+        .log-line.error { color: var(--gcp-red); }
+        .log-line.key { color: #93c5fd; }
+        .log-line.cdf { color: var(--cdf); }
+        .log-line.hub { color: #c4b5fd; }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateX(-5px); }
+            to { opacity: 1; transform: translateX(0); }
+        }
+
+        @media (max-width: 1250px) {
+            .workspace { grid-template-columns: 1fr; }
+            .pipeline-visual { flex-wrap: wrap; }
+            .pipeline-arrow { display: none; }
+        }
+
+        .score-bar {
+            margin-top: 20px;
+            display: flex;
+            gap: 20px;
+            align-items: center;
+            background: var(--panel);
+            padding: 12px 24px;
+            border-radius: 10px;
+            border: 1px solid var(--border);
+            font-size: 0.85rem;
+        }
+        .score-bar .score-item { display: flex; align-items: center; gap: 8px; }
+        .score-bar .score-item i { color: var(--gcp-yellow); }
+        .score-bar .score-val { color: var(--gcp-green); font-weight: bold; font-family: monospace; }
+    </style>
+</head>
+<body>
+
+    <header>
+        <h1><i class="fa-solid fa-rocket"></i> Getting Started with Cloud Data Fusion</h1>
+        <p class="subtitle">Lab OCBL161 · Data Fusion Instance · Hub Pipeline · JSON → BigQuery · Región: <code>us-central1</code></p>
+    </header>
+
+    <div class="controls">
+        <button class="btn" id="btnTask1" onclick="runTask1()"><i class="fa-solid fa-plug"></i> T1 · API</button>
+        <button class="btn" id="btnTask2" onclick="runTask2()" disabled><i class="fa-solid fa-server"></i> T2 · Instancia</button>
+        <button class="btn" id="btnTask3" onclick="runTask3()" disabled><i class="fa-solid fa-compass"></i> T3 · UI</button>
+        <button class="btn" id="btnTask4" onclick="runTask4()" disabled><i class="fa-solid fa-store"></i> T4 · Hub</button>
+        <button class="btn" id="btnTask5" onclick="runTask5()" disabled><i class="fa-solid fa-eye"></i> T5 · View</button>
+        <button class="btn" id="btnTask6" onclick="runTask6()" disabled><i class="fa-solid fa-play"></i> T6 · Execute</button>
+        <button class="btn" id="btnTask7" onclick="runTask7()" disabled><i class="fa-solid fa-circle-check"></i> T7 · Results</button>
+        <button class="btn" id="btnReset" onclick="resetAll()" style="border-color:#ef4444;color:#fca5a5;"><i class="fa-solid fa-rotate-left"></i></button>
+    </div>
+
+    <div class="workspace">
+
+        <!-- COLUMNA 1: RECURSOS -->
+        <div class="panel">
+            <div class="panel-title"><i class="fa-solid fa-cubes"></i> Recursos del Lab</div>
+            <div id="resourceList">
+                <div class="resource-item" data-res="project">
+                    <div class="name"><i class="fa-solid fa-diagram-project" style="color:var(--accent)"></i> Project ID</div>
+                    <div class="detail">qwiklabs-gcp-02-xxxxx</div>
+                </div>
+                <div class="resource-item" data-res="api">
+                    <div class="name"><i class="fa-solid fa-plug" style="color:var(--gcp-green)"></i> Cloud Data Fusion API</div>
+                    <div class="detail">datafusion.googleapis.com</div>
+                </div>
+                <div class="resource-item" data-res="instance">
+                    <div class="name"><i class="fa-solid fa-server" style="color:var(--cdf)"></i> CDF Instance</div>
+                    <div class="detail">cdf-lab-instance</div>
+                    <div class="status"></div>
+                </div>
+                <div class="resource-item" data-res="iam">
+                    <div class="name"><i class="fa-solid fa-shield" style="color:var(--gcp-green)"></i> IAM: CDF API Agent</div>
+                    <div class="detail">dataproc service account</div>
+                    <div class="status"></div>
+                </div>
+                <div class="resource-item" data-res="hub">
+                    <div class="name"><i class="fa-solid fa-store" style="color:var(--hub)"></i> Hub Pipeline</div>
+                    <div class="detail">Data Fusion Quickstart</div>
+                    <div class="status"></div>
+                </div>
+                <div class="resource-item" data-res="pipeline">
+                    <div class="name"><i class="fa-solid fa-diagram-project" style="color:var(--cdf)"></i> Deployed Pipeline</div>
+                    <div class="detail">Quickstart</div>
+                    <div class="status"></div>
+                </div>
+                <div class="resource-item" data-res="bqtable">
+                    <div class="name"><i class="fa-solid fa-table" style="color:var(--bq)"></i> BQ Table</div>
+                    <div class="detail">GCPQuickstart.top_rated_inexpensive</div>
+                    <div class="status"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- COLUMNA 2: CANVAS -->
+        <div class="canvas">
+
+            <!-- Task 2: Instance details -->
+            <div class="stage-card" id="stageInstance">
+                <h2><i class="fa-solid fa-server" style="color:var(--cdf)"></i> Instancia de Data Fusion <span class="tag">Task 2</span></h2>
+                <div class="instance-card" id="instanceCard">
+                    <div class="i-header">
+                        <span><i class="fa-solid fa-circle" style="color:var(--gcp-green); font-size:0.5rem;"></i> cdf-lab-instance</span>
+                        <span style="color:var(--gcp-green);">Running</span>
+                    </div>
+                    <div class="instance-prop"><span class="k">Region</span><span class="v">us-central1</span></div>
+                    <div class="instance-prop"><span class="k">Edition</span><span class="v">Basic</span></div>
+                    <div class="instance-prop"><span class="k">Version</span><span class="v">6.10.1</span></div>
+                    <div class="instance-prop"><span class="k">Managed Spark SA</span><span class="v">service-xxxxx@gcp-sa-datafusion.iam.gserviceaccount.com</span></div>
+                    <div class="instance-prop"><span class="k">IAM Role</span><span class="v">Cloud Data Fusion API Service Agent</span></div>
+                </div>
+            </div>
+
+            <!-- Task 4: Hub visual -->
+            <div class="stage-card" id="stageHub">
+                <h2><i class="fa-solid fa-store" style="color:var(--hub)"></i> Cloud Data Fusion Hub <span class="tag">Task 4</span></h2>
+                <div class="hub-visual" id="hubVisual">
+                    <div class="hub-card" style="animation-delay:0.1s;">
+                        <div class="hub-icon"><i class="fa-solid fa-rocket"></i></div>
+                        <div class="hub-info">
+                            <div class="title">Cloud Data Fusion Quickstart</div>
+                            <div class="desc">Pipeline de ejemplo: JSON → transformaciones → BigQuery</div>
+                        </div>
+                        <div class="hub-action">Create</div>
+                    </div>
+                    <div class="hub-card" style="animation-delay:0.25s; opacity:0.4;">
+                        <div class="hub-icon"><i class="fa-solid fa-file-csv"></i></div>
+                        <div class="hub-info">
+                            <div class="title">CSV to BigQuery</div>
+                            <div class="desc">Pipeline simple de carga CSV</div>
+                        </div>
+                        <div class="hub-action" style="background:#334155;">+</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Task 5-6: Pipeline visual -->
+            <div class="stage-card" id="stagePipeline">
+                <h2><i class="fa-solid fa-diagram-project" style="color:var(--cdf)"></i> Pipeline Studio: Quickstart <span class="tag">Tasks 5-6</span></h2>
+                <div class="pipeline-visual" id="pipelineVisual">
+                    <div class="pipeline-node source" data-pnode="gcs">
+                        <i class="fa-solid fa-cloud"></i> GCS JSON
+                        <span class="sub">bestsellers.json</span>
+                        <span class="records" data-rec="gcs"></span>
+                    </div>
+                    <div class="pipeline-arrow" data-parrow="1"><i class="fa-solid fa-arrow-right"></i></div>
+                    <div class="pipeline-node transform" data-pnode="wrangler">
+                        <i class="fa-solid fa-wand-magic-sparkles"></i> Wrangler
+                        <span class="sub">parse + clean</span>
+                        <span class="records" data-rec="wrangler"></span>
+                    </div>
+                    <div class="pipeline-arrow" data-parrow="2"><i class="fa-solid fa-arrow-right"></i></div>
+                    <div class="pipeline-node transform" data-pnode="filter">
+                        <i class="fa-solid fa-filter"></i> Filter
+                        <span class="sub">top rated + cheap</span>
+                        <span class="records" data-rec="filter"></span>
+                    </div>
+                    <div class="pipeline-arrow" data-parrow="3"><i class="fa-solid fa-arrow-right"></i></div>
+                    <div class="pipeline-node sink" data-pnode="bq">
+                        <i class="fa-solid fa-database"></i> BigQuery
+                        <span class="sub">GCPQuickstart.top_rated_inexpensive</span>
+                        <span class="records" data-rec="bq"></span>
+                    </div>
+                </div>
+                <div class="job-progress" id="jobProgress">
+                    <div class="progress-step" data-step="deploy"><span class="dot"></span> Deploying pipeline...</div>
+                    <div class="progress-step" data-step="provision"><span class="dot"></span> Provisioning ephemeral Dataproc cluster</div>
+                    <div class="progress-step" data-step="running"><span class="dot"></span> Pipeline running on Spark cluster</div>
+                    <div class="progress-step" data-step="succeeded"><span class="dot"></span> Pipeline status: Succeeded</div>
+                    <div class="progress-step" data-step="cleanup"><span class="dot"></span> Ephemeral cluster deleted</div>
+                </div>
+            </div>
+
+            <!-- Task 7: BigQuery result -->
+            <div class="stage-card" id="stageBQ">
+                <h2><i class="fa-solid fa-database" style="color:var(--bq)"></i> Resultados en BigQuery <span class="tag">Task 7</span></h2>
+                <div class="bq-result" id="bqResult">
+                    <div class="r-header">
+                        <span><i class="fa-solid fa-check-circle" style="color:var(--gcp-green);"></i> SELECT * FROM GCPQuickstart.top_rated_inexpensive LIMIT 10</span>
+                        <span class="count" id="bqCount">0 rows</span>
+                    </div>
+                    <table class="bq-table" id="bqTable">
+                        <thead>
+                            <tr>
+                                <th>title</th>
+                                <th>author</th>
+                                <th>price</th>
+                                <th>rating</th>
+                                <th>reviews</th>
+                            </tr>
+                        </thead>
+                        <tbody></tbody>
+                    </table>
+                </div>
+            </div>
+
+        </div>
+
+        <!-- COLUMNA 3: CONSOLA -->
+        <div class="panel" style="padding:0; background:transparent; border:none;">
+            <div class="console" id="console">
+                <div class="log-line info">// Cloud Shell — Getting Started with CDF</div>
+                <div class="log-line info">// Presiona "T1 · API" para comenzar</div>
+            </div>
+        </div>
+
+    </div>
+
+    <div class="score-bar">
+        <div class="score-item"><i class="fa-solid fa-star"></i> Score:</div>
+        <div class="score-item"><span class="score-val" id="scoreVal">0</span> / 100</div>
+        <div class="score-item" style="margin-left:auto; color:var(--muted); font-size:0.75rem;">
+            <i class="fa-solid fa-clock"></i> Lab OCBL161 · 1h 30min
+        </div>
+    </div>
+
+    <script>
+        const consoleEl = document.getElementById('console');
+        const wait = (ms) => new Promise(r => setTimeout(r, ms));
+        let score = 0;
+        const projectId = 'qwiklabs-gcp-02-xxxxx';
+
+        function log(text, type = 'info') {
+            const div = document.createElement('div');
+            div.className = `log-line ${type}`;
+            div.innerHTML = text;
+            consoleEl.appendChild(div);
+            consoleEl.scrollTop = consoleEl.scrollHeight;
+        }
+
+        function clearConsole() {
+            consoleEl.innerHTML = '<div class="log-line info">// Consola reiniciada</div>';
+        }
+
+        function addScore(pts) {
+            score += pts;
+            document.getElementById('scoreVal').textContent = score;
+        }
+
+        function markResource(res, detail, status) {
+            const el = document.querySelector(`.resource-item[data-res="${res}"]`);
+            if (!el) return;
+            el.classList.add('used');
+            if (detail) {
+                const d = el.querySelector('.detail');
+                if (d) d.textContent = detail;
+            }
+            if (status) {
+                const s = el.querySelector('.status');
+                if (s) s.textContent = status;
+            }
+        }
+
+        // ==========================================================
+        // TASK 1: ENABLE API
+        // ==========================================================
+        async function runTask1() {
+            document.getElementById('btnTask1').disabled = true;
+            clearConsole();
+
+            log('// Task 1: Habilitar Cloud Data Fusion API', 'info');
+            log('// APIs & Services > Library > buscar "Data fusion"', 'info');
+            await wait(700);
+            log('Cloud Data Fusion API — Manage', 'key');
+            await wait(500);
+            log('Disable API → Confirm', 'warn');
+            await wait(800);
+            log('API deshabilitada.', 'info');
+            await wait(400);
+            log('Enable (re-habilitar API)', 'cmd');
+            await wait(1200);
+            log('API habilitada correctamente.', 'success');
+            markResource('api', 'datafusion.googleapis.com', '✓ habilitada');
+            await wait(400);
+            addScore(15);
+
+            document.getElementById('btnTask1').classList.add('done');
+            document.getElementById('btnTask2').disabled = false;
+            document.getElementById('btnTask2').classList.add('active');
+        }
+
+        // ==========================================================
+        // TASK 2: CREATE CDF INSTANCE
+        // ==========================================================
+        async function runTask2() {
+            document.getElementById('btnTask2').disabled = true;
+            document.getElementById('stageInstance').classList.add('active');
+
+            log('', 'info');
+            log('// Task 2: Crear instancia de Cloud Data Fusion', 'info');
+            log('// Data Fusion > Create an Instance', 'info');
+            await wait(700);
+            log('Name: cdf-lab-instance', 'key');
+            log('Region: us-central1', 'key');
+            log('Edition: Basic', 'key');
+            log('Advanced > Managed Service for Spark Cloud logging: ✓', 'key');
+            await wait(1000);
+            log('Creating instance... (takes ~10 minutes)', 'warn');
+            await wait(1500);
+            log('Instance cdf-lab-instance is running.', 'success');
+            markResource('instance', 'cdf-lab-instance', '✓ Running');
+
+            const instanceCard = document.getElementById('instanceCard');
+            instanceCard.classList.add('show');
+            await wait(700);
+
+            // IAM
+            log('', 'info');
+            log('// Grant Cloud Data Fusion API Service Agent al Managed Spark SA', 'info');
+            log('IAM > +Grant Access', 'key');
+            log('Principal: service-xxxxx@gcp-sa-datafusion.iam.gserviceaccount.com', 'key');
+            log('Role: Cloud Data Fusion API Service Agent', 'key');
+            await wait(1000);
+            log('✓ Permisos otorgados.', 'success');
+            markResource('iam', 'service-xxxxx@gcp-sa-datafusion', '✓ API Service Agent');
+            await wait(400);
+
+            addScore(20);
+            document.getElementById('btnTask2').classList.add('done');
+            document.getElementById('btnTask3').disabled = false;
+            document.getElementById('btnTask3').classList.add('active');
+        }
+
+        // ==========================================================
+        // TASK 3: NAVIGATE CDF UI
+        // ==========================================================
+        async function runTask3() {
+            document.getElementById('btnTask3').disabled = true;
+
+            log('', 'info');
+            log('// Task 3: Navegar la UI de Cloud Data Fusion', 'info');
+            log('// Data Fusion > View Instance', 'info');
+            await wait(800);
+            log('Autenticando con credenciales del lab...', 'info');
+            await wait(700);
+            log('✓ UI de Cloud Data Fusion cargada.', 'success');
+            log('// Navigation panel: Pipeline Studio, Wrangler, Hub, etc.', 'key');
+            await wait(600);
+
+            addScore(10);
+            document.getElementById('btnTask3').classList.add('done');
+            document.getElementById('btnTask4').disabled = false;
+            document.getElementById('btnTask4').classList.add('active');
+        }
+
+        // ==========================================================
+        // TASK 4: DEPLOY SAMPLE PIPELINE FROM HUB
+        // ==========================================================
+        async function runTask4() {
+            document.getElementById('btnTask4').disabled = true;
+            document.getElementById('stageHub').classList.add('active');
+
+            log('', 'info');
+            log('// Task 4: Desplegar pipeline de ejemplo desde el Hub', 'info');
+            log('// CDF UI > HUB > Pipelines', 'info');
+            await wait(700);
+
+            const hubVisual = document.getElementById('hubVisual');
+            hubVisual.classList.add('show');
+            await wait(700);
+            log('  ✓ Cloud Data Fusion Quickstart encontrado', 'hub');
+            await wait(600);
+
+            log('// Click "Cloud Data Fusion Quickstart" → Create', 'info');
+            await wait(800);
+            log('// Quickstart config panel → Finish', 'info');
+            await wait(600);
+            log('// Customize Pipeline → se abre Pipeline Studio', 'key');
+            await wait(500);
+
+            markResource('hub', 'Data Fusion Quickstart', '✓ seleccionado');
+            markResource('pipeline', 'Quickstart', '✓ en Pipeline Studio');
+
+            document.getElementById('stagePipeline').classList.add('active');
+            await wait(500);
+
+            // Mostrar nodos del pipeline
+            const nodes = ['gcs', 'wrangler', 'filter', 'bq'];
+            for (let i = 0; i < nodes.length; i++) {
+                document.querySelector(`[data-pnode="${nodes[i]}"]`).classList.add('show');
+                await wait(400);
+                const arrow = document.querySelector(`[data-parrow="${i+1}"]`);
+                if (arrow) arrow.classList.add('show');
+                await wait(150);
+            }
+
+            log('// Pipeline: GCS JSON → Wrangler → Filter → BigQuery', 'success');
+            await wait(500);
+
+            log('', 'info');
+            log('// Click Deploy (top right)', 'cmd');
+            await wait(800);
+            log('✓ Pipeline deployado en Cloud Data Fusion.', 'success');
+            await wait(400);
+
+            addScore(15);
+            document.getElementById('btnTask4').classList.add('done');
+            document.getElementById('btnTask5').disabled = false;
+            document.getElementById('btnTask5').classList.add('active');
+        }
+
+        // ==========================================================
+        // TASK 5: VIEW PIPELINE
+        // ==========================================================
+        async function runTask5() {
+            document.getElementById('btnTask5').disabled = true;
+
+            log('', 'info');
+            log('// Task 5: Ver pipeline deployado', 'info');
+            log('// Pipeline details view:', 'key');
+            log('  • Structure & configuration', 'info');
+            log('  • Run manually / schedule / trigger', 'info');
+            log('  • Summary de runs históricos (logs, metrics)', 'info');
+            await wait(1200);
+            log('✓ Pipeline listo para ejecutar.', 'success');
+            await wait(400);
+
+            addScore(10);
+            document.getElementById('btnTask5').classList.add('done');
+            document.getElementById('btnTask6').disabled = false;
+            document.getElementById('btnTask6').classList.add('active');
+        }
+
+        // ==========================================================
+        // TASK 6: EXECUTE PIPELINE
+        // ==========================================================
+        async function runTask6() {
+            document.getElementById('btnTask6').disabled = true;
+
+            log('', 'info');
+            log('// Task 6: Ejecutar pipeline', 'info');
+            log('// Click Run (top center)', 'cmd');
+            await wait(800);
+
+            const jp = document.getElementById('jobProgress');
+            jp.classList.add('show');
+
+            // Deploy step (ya hecho)
+            document.querySelector('[data-step="deploy"]').classList.add('ok');
+            await wait(300);
+
+            // Provisioning
+            document.querySelector('[data-step="provision"]').classList.add('running');
+            log('Provisioning ephemeral Managed Service for Spark cluster...', 'cdf');
+            await wait(1500);
+            document.querySelector('[data-step="provision"]').classList.remove('running');
+            document.querySelector('[data-step="provision"]').classList.add('ok');
+            log('✓ Cluster provisionado.', 'success');
+
+            // Running
+            document.querySelector('[data-step="running"]').classList.add('running');
+            log('Pipeline running on Spark cluster...', 'cdf');
+            await wait(1800);
+            document.querySelector('[data-step="running"]').classList.remove('running');
+            document.querySelector('[data-step="running"]').classList.add('ok');
+
+            // Mostrar records procesados por nodo
+            const recs = { gcs: '1000', wrangler: '1000', filter: '42', bq: '42' };
+            for (const [key, val] of Object.entries(recs)) {
+                const recEl = document.querySelector(`[data-rec="${key}"]`);
+                if (recEl) recEl.textContent = val + ' records';
+                await wait(300);
+            }
+
+            // Succeeded
+            document.querySelector('[data-step="succeeded"]').classList.add('running');
+            log('Pipeline status: Succeeded', 'success');
+            await wait(1000);
+            document.querySelector('[data-step="succeeded"]').classList.remove('running');
+            document.querySelector('[data-step="succeeded"]').classList.add('ok');
+
+            // Cleanup
+            document.querySelector('[data-step="cleanup"]').classList.add('running');
+            log('Deleting ephemeral cluster...', 'info');
+            await wait(1200);
+            document.querySelector('[data-step="cleanup"]').classList.remove('running');
+            document.querySelector('[data-step="cleanup"]').classList.add('ok');
+            log('✓ Cluster eliminado. Job completado.', 'success');
+
+            await wait(500);
+            addScore(15);
+            document.getElementById('btnTask6').classList.add('done');
+            document.getElementById('btnTask7').disabled = false;
+            document.getElementById('btnTask7').classList.add('active');
+        }
+
+        // ==========================================================
+        // TASK 7: VIEW RESULTS
+        // ==========================================================
+        async function runTask7() {
+            document.getElementById('btnTask7').disabled = true;
+            document.getElementById('stageBQ').classList.add('active');
+
+            log('', 'info');
+            log('// Task 7: Verificar resultados en BigQuery', 'info');
+            log('SELECT * FROM `' + projectId + '.GCPQuickstart.top_rated_inexpensive` LIMIT 10', 'cmd');
+            await wait(1200);
+            log('Query complete. 10 rows returned.', 'success');
+            await wait(400);
+
+            const bqResult = document.getElementById('bqResult');
+            bqResult.classList.add('show');
+            const tbody = document.querySelector('#bqTable tbody');
+            const countEl = document.getElementById('bqCount');
+
+            const books = [
+                { title: 'THE DA VINCI CODE', author: 'Dan Brown', price: 4.99, rating: 4.5, reviews: 1234 },
+                { title: 'THE NOTEBOOK', author: 'Nicholas Sparks', price: 5.99, rating: 4.4, reviews: 987 },
+                { title: 'THE HUNGER GAMES', author: 'Suzanne Collins', price: 6.99, rating: 4.6, reviews: 1567 },
+                { title: 'TWILIGHT', author: 'Stephenie Meyer', price: 5.49, rating: 4.3, reviews: 2345 },
+                { title: 'THE HELP', author: 'Kathryn Stockett', price: 7.99, rating: 4.7, reviews: 876 },
+                { title: 'WATER FOR ELEPHANTS', author: 'Sara Gruen', price: 6.49, rating: 4.5, reviews: 654 },
+                { title: 'THE LOVELY BONES', author: 'Alice Sebold', price: 4.49, rating: 4.2, reviews: 543 },
+                { title: 'THE KITE RUNNER', author: 'Khaled Hosseini', price: 8.99, rating: 4.8, reviews: 1123 },
+                { title: 'A THOUSAND SPLENDID SUNS', author: 'Khaled Hosseini', price: 7.49, rating: 4.6, reviews: 789 },
+                { title: 'THE GIRL WITH THE DRAGON TATTOO', author: 'Stieg Larsson', price: 6.99, rating: 4.4, reviews: 1456 }
+            ];
+
+            for (const b of books) {
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td>${b.title}</td>
+                    <td>${b.author}</td>
+                    <td class="num">$${b.price.toFixed(2)}</td>
+                    <td class="num">${b.rating}</td>
+                    <td class="num">${b.reviews}</td>
+                `;
+                tbody.appendChild(tr);
+                await wait(80);
+            }
+            countEl.textContent = '42 rows in table';
+
+            markResource('bqtable', 'GCPQuickstart.top_rated_inexpensive', '✓ 42 rows');
+            await wait(500);
+
+            addScore(15);
+            log('', 'info');
+            log('=== LAB COMPLETADO ===', 'success');
+            log('Score final: ' + score + ' / 100', 'success');
+            log('Pipeline Quickstart ejecutado: JSON → Wrangler → Filter → BigQuery', 'info');
+            log('Tabla: GCPQuickstart.top_rated_inexpensive (42 records)', 'key');
+
+            document.getElementById('btnTask7').classList.add('done');
+        }
+
+        // ==========================================================
+        // RESET
+        // ==========================================================
+        function resetAll() {
+            score = 0;
+            document.getElementById('scoreVal').textContent = '0';
+
+            document.querySelectorAll('.resource-item').forEach(el => {
+                el.classList.remove('used');
+                const s = el.querySelector('.status');
+                if (s) s.textContent = '';
+            });
+
+            document.querySelector('[data-res="instance"] .detail').textContent = 'cdf-lab-instance';
+            document.querySelector('[data-res="iam"] .detail').textContent = 'dataproc service account';
+            document.querySelector('[data-res="hub"] .detail').textContent = 'Data Fusion Quickstart';
+            document.querySelector('[data-res="pipeline"] .detail').textContent = 'Quickstart';
+            document.querySelector('[data-res="bqtable"] .detail').textContent = 'GCPQuickstart.top_rated_inexpensive';
+
+            document.querySelectorAll('.stage-card').forEach(el => el.classList.remove('active'));
+            document.querySelectorAll('.pipeline-node').forEach(el => el.classList.remove('show'));
+            document.querySelectorAll('.pipeline-arrow').forEach(el => el.classList.remove('show'));
+            document.querySelectorAll('.progress-step').forEach(el => el.classList.remove('ok', 'running'));
+            document.querySelectorAll('.records').forEach(el => el.textContent = '');
+
+            document.getElementById('instanceCard').classList.remove('show');
+            document.getElementById('hubVisual').classList.remove('show');
+            document.getElementById('jobProgress').classList.remove('show');
+            document.getElementById('bqResult').classList.remove('show');
+            document.querySelector('#bqTable tbody').innerHTML = '';
+            document.getElementById('bqCount').textContent = '0 rows';
+
+            ['btnTask1','btnTask2','btnTask3','btnTask4','btnTask5','btnTask6','btnTask7'].forEach(id => {
+                const btn = document.getElementById(id);
+                btn.disabled = (id !== 'btnTask1');
+                btn.classList.remove('active', 'done');
+            });
+            document.getElementById('btnTask1').disabled = false;
+
+            clearConsole();
+        }
+    </script>
+</body>
+</html>
