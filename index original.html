@@ -1,0 +1,1420 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Ingeniero de Datos & AI, Civil y Desarrollo de Software. Maestría en Ciencia de Datos & Ciberseguridad, MBA.">
+    <title>Ing. Eric Rodriguez - Data & AI Engineer | Civil Engineer | Software Developer</title>
+    
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,700;0,900;1,700&family=Inter:wght@300;400;500;600;700;800&family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+    
+    <!-- Animate CSS -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/4.1.1/animate.min.css">
+    
+    <!-- Swiper CSS -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/swiper@11/swiper-bundle.min.css">
+    
+    <!-- Custom Styles -->
+    <link rel="stylesheet" href="styles.css">
+    
+    <!-- Favicon -->
+    <link rel="icon" type="image/x-icon" href="favicon.ico">
+</head>
+<body>
+    <!-- ==================== PRELOADER ==================== -->
+    <div id="preloader">
+        <div class="loader-container">
+            <div class="loader-ring"></div>
+            <div class="loader-text">Cargando...</div>
+        </div>
+    </div>
+
+    <!-- ==================== NAVIGATION ==================== -->
+    <nav id="navbar" class="navbar">
+        <div class="container">
+            <div class="nav-wrapper">
+                <div class="nav-logo">
+                    <a href="#hero">
+                        <img src="logo.svg" alt="Logo" class="logo-img">
+                        <span class="logo-text">    </span>
+                    </a>
+                </div>
+                
+                <ul class="nav-menu" id="navMenu">
+                    <li><a href="#hero" class="nav-link active">Inicio</a></li>
+                    <li><a href="#about" class="nav-link">Sobre Mí</a></li>
+                    <li><a href="#services" class="nav-link">Servicios</a></li>
+                    <li><a href="#expertise" class="nav-link">Expertise</a></li>
+                    <li><a href="#projects" class="nav-link">Proyectos</a></li>
+                    <li><a href="#certifications" class="nav-link">Certificaciones</a></li>
+                    <li><a href="#testimonials" class="nav-link">Testimonios</a></li>
+                    <li><a href="#contact" class="nav-link">Contacto</a></li>
+                </ul>
+                
+                <div class="nav-actions">
+                    <a href="#contact" class="btn btn-primary btn-sm">Contratar</a>
+                    <div class="hamburger" id="hamburger">
+                        <span></span>
+                        <span></span>
+                        <span></span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <!-- ==================== HERO SECTION ==================== -->
+    <section id="hero" class="hero">
+        <div id="particles-js" class="hero-particles"></div>
+        <div class="hero-overlay"></div>
+        <div class="container hero-container">
+            <div class="hero-content">
+                <div class="hero-badge animate__animated animate__fadeInDown">
+                    <span class="badge-dot"></span>
+                    Disponible para proyectos
+                </div>
+                
+                <h1 class="hero-title animate__animated animate__fadeInUp">
+                    <span class="hero-greeting">Hola, soy</span>
+                    <span class="hero-name">Eric Rodriguez</span>
+                    <span class="hero-role">
+                        <span class="typed-text" id="typed-text"></span>
+                    </span>
+                </h1>
+                
+                <p class="hero-description animate__animated animate__fadeInUp animate__delay-1s">
+                    Ingeniero de Datos & AI | Ingeniero Civil | Desarrollador de Software<br>
+                    Maestría en Ciencia de Datos & Ciberseguridad | MBA
+                </p>
+                
+                <div class="hero-buttons animate__animated animate__fadeInUp animate__delay-2s">
+                    <a href="#projects" class="btn btn-primary">
+                        <i class="fas fa-rocket"></i> Ver Proyectos
+                    </a>
+                    <a href="#contact" class="btn btn-outline">
+                        <i class="fas fa-paper-plane"></i> Contáctame
+                    </a>
+                </div>
+                
+                <div class="hero-stats animate__animated animate__fadeInUp animate__delay-3s">
+                    <div class="stat-item">
+                        <span class="stat-number" data-count="7">0</span>
+                        <span class="stat-label">Años de Experiencia</span>
+                    </div>
+                    <div class="stat-divider"></div>
+                    <div class="stat-item">
+                        <span class="stat-number" data-count="50">0</span>
+                        <span class="stat-label">Proyectos Completados</span>
+                        <span class="stat-plus">+</span>
+                    </div>
+                    <div class="stat-divider"></div>
+                    <div class="stat-item">
+                        <span class="stat-number" data-count="15">0</span>
+                        <span class="stat-label">Certificaciones</span>
+                        <span class="stat-plus">+</span>
+                    </div>
+                </div>
+                
+                <div class="hero-social animate__animated animate__fadeInUp animate__delay-3s">
+                    <a href="#" target="_blank" aria-label="LinkedIn"><i class="fab fa-linkedin-in"></i></a>
+                    <a href="#" target="_blank" aria-label="GitHub"><i class="fab fa-github"></i></a>
+                    <a href="#" target="_blank" aria-label="YouTube"><i class="fab fa-youtube"></i></a>
+                    <a href="#" target="_blank" aria-label="Twitter"><i class="fab fa-twitter"></i></a>
+                    <a href="#" target="_blank" aria-label="WhatsApp"><i class="fab fa-whatsapp"></i></a>
+                </div>
+            </div>
+            
+            <div class="hero-visual animate__animated animate__fadeInRight animate__delay-1s">
+                <div class="hero-image-wrapper">
+                    <div class="hero-image-glow"></div>
+                    <img src="profile-photo.jpg" alt="Eric Rodriguez" class="hero-image">
+                    <div class="hero-image-badge">
+                        <i class="fas fa-check-circle"></i>
+                        <span>Disponible</span>
+                    </div>
+                </div>
+                
+                <div class="floating-card card-1">
+                    <i class="fas fa-brain"></i>
+                    <span>AI & ML</span>
+                </div>
+                <div class="floating-card card-2">
+                    <i class="fas fa-cloud"></i>
+                    <span>AWS & GCP</span>
+                </div>
+                <div class="floating-card card-3">
+                    <i class="fas fa-code"></i>
+                    <span>Full Stack</span>
+                </div>
+            </div>
+        </div>
+        
+        <div class="scroll-indicator">
+            <a href="#about" class="scroll-link">
+                <span class="scroll-text">Scroll</span>
+                <i class="fas fa-chevron-down"></i>
+            </a>
+        </div>
+    </section>
+
+    <!-- ==================== ABOUT SECTION ==================== -->
+    <section id="about" class="about section-padding">
+        <div class="container">
+            <div class="section-header">
+                <span class="section-tag">Sobre Mí</span>
+                <h2 class="section-title">Multi-disciplinario con <span class="highlight">Visión Integral</span></h2>
+                <div class="section-line"></div>
+                <p class="section-subtitle">
+                    Tres áreas de expertise que convergen en soluciones innovadoras
+                </p>
+            </div>
+            
+            <div class="about-grid">
+                <div class="about-content">
+                    <div class="about-text">
+                        <p class="about-main">
+                            Soy un profesional multidisciplinario con una visión única que combina la 
+                            <strong>ingeniería civil</strong>, el <strong>desarrollo de software</strong> 
+                            y la <strong>ciencia de datos</strong> para crear soluciones integrales e innovadoras.
+                        </p>
+                        <p>
+                            Mi formación académica incluye una <strong>Maestría en Ciencia de Datos & Ciberseguridad</strong> 
+                            y un <strong>MBA</strong>, lo que me permite abordar los desafíos desde una perspectiva 
+                            técnica y estratégica.
+                        </p>
+                    </div>
+                    
+                    <div class="about-info-grid">
+                        <div class="info-item">
+                            <i class="fas fa-graduation-cap"></i>
+                            <div>
+                                <h4>Educación</h4>
+                                <p>MBA · Maestría en Data Science & Ciberseguridad</p>
+                            </div>
+                        </div>
+                        <div class="info-item">
+                            <i class="fas fa-briefcase"></i>
+                            <div>
+                                <h4>Experiencia</h4>
+                                <p>7+ años en ingeniería, datos y desarrollo</p>
+                            </div>
+                        </div>
+                        <div class="info-item">
+                            <i class="fas fa-map-pin"></i>
+                            <div>
+                                <h4>Ubicación</h4>
+                                <p>CDMX, México · Disponible Remoto</p>
+                            </div>
+                        </div>
+                        <div class="info-item">
+                            <i class="fas fa-language"></i>
+                            <div>
+                                <h4>Idiomas</h4>
+                                <p>Español (Nativo) · Inglés (Avanzado)</p>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="about-cta">
+                        <a href="#" class="btn btn-primary">
+                            <i class="fas fa-download"></i> Descargar CV
+                        </a>
+                        <a href="#contact" class="btn btn-outline">
+                            <i class="fas fa-envelope"></i> Contáctame
+                        </a>
+                    </div>
+                </div>
+                
+                <div class="about-timeline">
+                    <div class="timeline-item">
+                        <div class="timeline-icon">
+                            <i class="fas fa-robot"></i>
+                        </div>
+                        <div class="timeline-content">
+                            <h4>Ingeniero de Datos & AI</h4>
+                            <p class="timeline-date">2020 - Presente</p>
+                            <p>Desarrollo de pipelines, modelos ML/DL, arquitecturas en AWS y GCP</p>
+                        </div>
+                    </div>
+                    
+                    <div class="timeline-item">
+                        <div class="timeline-icon">
+                            <i class="fas fa-code"></i>
+                        </div>
+                        <div class="timeline-content">
+                            <h4>Desarrollador de Software</h4>
+                            <p class="timeline-date">2018 - Presente</p>
+                            <p>Creación de aplicaciones, diseño web, arquitectura de software</p>
+                        </div>
+                    </div>
+                    
+                    <div class="timeline-item">
+                        <div class="timeline-icon">
+                            <i class="fas fa-hard-hat"></i>
+                        </div>
+                        <div class="timeline-content">
+                            <h4>Ingeniero Civil</h4>
+                            <p class="timeline-date">2016 - Presente</p>
+                            <p>Construcción, diseño estructural, costos y presupuestos</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- ==================== SERVICES SECTION ==================== -->
+    <section id="services" class="services section-padding">
+        <div class="container">
+            <div class="section-header">
+                <span class="section-tag">Servicios</span>
+                <h2 class="section-title">Lo Que <span class="highlight">Ofrezco</span></h2>
+                <div class="section-line"></div>
+                <p class="section-subtitle">
+                    Soluciones integrales desde tres áreas de expertise
+                </p>
+            </div>
+            
+            <div class="services-grid">
+                <div class="service-card">
+                    <div class="service-icon">
+                        <i class="fas fa-database"></i>
+                    </div>
+                    <h3>Data & AI</h3>
+                    <ul>
+                        <li><i class="fas fa-check"></i> Pipelines de datos (ETL/ELT)</li>
+                        <li><i class="fas fa-check"></i> Machine Learning & Deep Learning</li>
+                        <li><i class="fas fa-check"></i> Computer Vision</li>
+                        <li><i class="fas fa-check"></i> Arquitectura en AWS/GCP</li>
+                        <li><i class="fas fa-check"></i> Data Warehousing & Lake</li>
+                    </ul>
+                </div>
+                
+                <div class="service-card">
+                    <div class="service-icon">
+                        <i class="fas fa-laptop-code"></i>
+                    </div>
+                    <h3>Desarrollo Software</h3>
+                    <ul>
+                        <li><i class="fas fa-check"></i> Aplicaciones Web & Mobile</li>
+                        <li><i class="fas fa-check"></i> Arquitectura de Software</li>
+                        <li><i class="fas fa-check"></i> APIs & Microservicios</li>
+                        <li><i class="fas fa-check"></i> Diseño UI/UX</li>
+                        <li><i class="fas fa-check"></i> DevOps & Cloud</li>
+                    </ul>
+                </div>
+                
+                <div class="service-card">
+                    <div class="service-icon">
+                        <i class="fas fa-building"></i>
+                    </div>
+                    <h3>Ingeniería Civil</h3>
+                    <ul>
+                        <li><i class="fas fa-check"></i> Diseño Estructural</li>
+                        <li><i class="fas fa-check"></i> Gestión de Construcción</li>
+                        <li><i class="fas fa-check"></i> Costos y Presupuestos</li>
+                        <li><i class="fas fa-check"></i> Supervisión de Obra</li>
+                        <li><i class="fas fa-check"></i> Modelado BIM</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- ==================== EXPERTISE SECTION ==================== -->
+    <section id="expertise" class="expertise section-padding">
+        <div class="container">
+            <div class="section-header">
+                <span class="section-tag">Expertise</span>
+                <h2 class="section-title">Tecnologías & <span class="highlight">Herramientas</span></h2>
+                <div class="section-line"></div>
+                <p class="section-subtitle">
+                    Stack tecnológico completo para cualquier desafío
+                </p>
+            </div>
+            
+            <div class="expertise-tabs">
+                <div class="tabs-nav">
+                    <button class="tab-btn active" data-tab="data">
+                        <i class="fas fa-chart-line"></i> Data & AI
+                    </button>
+                    <button class="tab-btn" data-tab="dev">
+                        <i class="fas fa-code"></i> Desarrollo
+                    </button>
+                    <button class="tab-btn" data-tab="civil">
+                        <i class="fas fa-hard-hat"></i> Civil
+                    </button>
+                    <button class="tab-btn" data-tab="cloud">
+                        <i class="fas fa-cloud"></i> Cloud & DevOps
+                    </button>
+                </div>
+                
+                <div class="tabs-content">
+                    <div class="tab-panel active" id="tab-data">
+                        <div class="tech-grid">
+                            <div class="tech-item"><img src="icon-python.svg" alt="Python"><span>Python</span></div>
+                            <div class="tech-item"><img src="icon-tensorflow.svg" alt="TensorFlow"><span>TensorFlow</span></div>
+                            <div class="tech-item"><img src="icon-pytorch.svg" alt="PyTorch"><span>PyTorch</span></div>
+                            <div class="tech-item"><img src="icon-spark.svg" alt="Apache Spark"><span>Apache Spark</span></div>
+                            <div class="tech-item"><img src="icon-kafka.svg" alt="Kafka"><span>Kafka</span></div>
+                            <div class="tech-item"><img src="icon-airflow.svg" alt="Airflow"><span>Airflow</span></div>
+                            <div class="tech-item"><img src="icon-snowflake.svg" alt="Snowflake"><span>Snowflake</span></div>
+                            <div class="tech-item"><img src="icon-databricks.svg" alt="Databricks"><span>Databricks</span></div>
+                            <div class="tech-item"><img src="icon-tableau.svg" alt="Tableau"><span>Tableau</span></div>
+                            <div class="tech-item"><img src="icon-powerbi.svg" alt="Power BI"><span>Power BI</span></div>
+                        </div>
+                    </div>
+                    
+                    <div class="tab-panel" id="tab-dev">
+                        <div class="tech-grid">
+                            <div class="tech-item"><img src="icon-react.svg" alt="React"><span>React</span></div>
+                            <div class="tech-item"><img src="icon-node.svg" alt="Node.js"><span>Node.js</span></div>
+                            <div class="tech-item"><img src="icon-html5.svg" alt="HTML5"><span>HTML5</span></div>
+                            <div class="tech-item"><img src="icon-css3.svg" alt="CSS3"><span>CSS3</span></div>
+                            <div class="tech-item"><img src="icon-javascript.svg" alt="JavaScript"><span>JavaScript</span></div>
+                            <div class="tech-item"><img src="icon-postgresql.svg" alt="PostgreSQL"><span>PostgreSQL</span></div>
+                            <div class="tech-item"><img src="icon-mongodb.svg" alt="MongoDB"><span>MongoDB</span></div>
+                            <div class="tech-item"><img src="icon-redis.svg" alt="Redis"><span>Redis</span></div>
+                        </div>
+                    </div>
+                    
+                    <div class="tab-panel" id="tab-civil">
+                        <div class="tech-grid">
+                            <div class="tech-item"><img src="icon-autocad.svg" alt="AutoCAD"><span>AutoCAD</span></div>
+                            <div class="tech-item"><img src="icon-revit.svg" alt="Revit"><span>Revit</span></div>
+                            <div class="tech-item"><img src="icon-etabs.svg" alt="ETABS"><span>ETABS</span></div>
+                            <div class="tech-item"><img src="icon-sap2000.svg" alt="SAP2000"><span>SAP2000</span></div>
+                            <div class="tech-item"><img src="icon-staad.svg" alt="STAAD Pro"><span>STAAD Pro</span></div>
+                            <div class="tech-item"><img src="icon-primavera.svg" alt="Primavera"><span>Primavera</span></div>
+                            <div class="tech-item"><img src="icon-msproject.svg" alt="MS Project"><span>MS Project</span></div>
+                        </div>
+                    </div>
+                    
+                    <div class="tab-panel" id="tab-cloud">
+                        <div class="tech-grid">
+                            <div class="tech-item"><img src="icon-aws.svg" alt="AWS"><span>AWS</span></div>
+                            <div class="tech-item"><img src="icon-gcp.svg" alt="GCP"><span>GCP</span></div>
+                            <div class="tech-item"><img src="icon-docker.svg" alt="Docker"><span>Docker</span></div>
+                            <div class="tech-item"><img src="icon-kubernetes.svg" alt="Kubernetes"><span>Kubernetes</span></div>
+                            <div class="tech-item"><img src="icon-terraform.svg" alt="Terraform"><span>Terraform</span></div>
+                            <div class="tech-item"><img src="icon-jenkins.svg" alt="Jenkins"><span>Jenkins</span></div>
+                            <div class="tech-item"><img src="icon-git.svg" alt="Git"><span>Git</span></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- ==================== PROJECTS SECTION ==================== -->
+    <section id="projects" class="projects section-padding">
+        <div class="container">
+            <div class="section-header">
+                <span class="section-tag">Portafolio</span>
+                <h2 class="section-title">Proyectos <span class="highlight">Destacados</span></h2>
+                <div class="section-line"></div>
+                <p class="section-subtitle">
+                    Soluciones reales que generan impacto
+                </p>
+            </div>
+            
+            <div class="projects-filter">
+                <button class="filter-btn active" data-filter="all">Todos</button>
+                <button class="filter-btn" data-filter="data">Data & AI</button>
+                <button class="filter-btn" data-filter="software">Software</button>
+                <button class="filter-btn" data-filter="civil">Ingeniería Civil</button>
+            </div>
+            
+            <div class="projects-grid">
+                
+                <!-- ========================================== -->
+                <!-- CATEGORÍA: DATA & AI (14 tarjetas)         -->
+                <!-- ========================================== -->
+                <!-- 4. Batch Pipelines con Cloud Data Fusion -->
+                <div class="project-card" data-category="data">
+                    <div class="project-image">
+                        <img src="img-datafusion-batch.jpg" alt="Data Fusion Batch">
+                        <div class="project-overlay">
+                            <a href="Proyectos Data & AI Engineering/04-GSP807  Building Batch Pipelines in Cloud Data Fusion.html" target="_blank" class="project-link"><i class="fas fa-eye"></i></a>
+                        </div>
+                    </div>
+                    <div class="project-info">
+                        <span class="project-tag">Data & AI</span>
+                        <h3>Batch Pipelines con Cloud Data Fusion</h3>
+                        <p>Construcción de pipelines ETL sin código usando Wrangler y BigQuery</p>
+                        <div class="project-tech">
+                            <span>Data Fusion</span><span>Wrangler</span><span>BigQuery</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 5. Realtime Pipelines en CDF -->
+                <div class="project-card" data-category="data">
+                    <div class="project-image">
+                        <img src="img-datafusion-realtime.jpg" alt="Data Fusion Realtime">
+                        <div class="project-overlay">
+                            <a href="Proyectos Data & AI Engineering/09-GSP808 OCBL164 Building Realtime Pipelines in Cloud Data Fusion.html" target="_blank" class="project-link"><i class="fas fa-eye"></i></a>
+                        </div>
+                    </div>
+                    <div class="project-info">
+                        <span class="project-tag">Data & AI</span>
+                        <h3>Realtime Pipelines en CDF</h3>
+                        <p>Procesamiento de streams con Pub/Sub y Spark Streaming</p>
+                        <div class="project-tech">
+                            <span>Pub/Sub</span><span>Spark Streaming</span><span>BigQuery</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 6. Enriquecimiento con Bigtable -->
+                <div class="project-card" data-category="data">
+                    <div class="project-image">
+                        <img src="img-bigtable-enrich.jpg" alt="Bigtable Enrichment">
+                        <div class="project-overlay">
+                            <a href="Proyectos Data & AI Engineering/10-GSP1345 Apache Beam + Bigtable Enrich esports DLC Data.html" target="_blank" class="project-link"><i class="fas fa-eye"></i></a>
+                        </div>
+                    </div>
+                    <div class="project-info">
+                        <span class="project-tag">Data & AI</span>
+                        <h3>Enriquecimiento con Bigtable</h3>
+                        <p>Pipeline de Beam que enriquece datos de esports con Bigtable y PyTorch</p>
+                        <div class="project-tech">
+                            <span>Apache Beam</span><span>Bigtable</span><span>PyTorch</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 7. Dataflow con Templates -->
+                <div class="project-card" data-category="data">
+                    <div class="project-image">
+                        <img src="img-dataflow-templates.jpg" alt="Dataflow Templates">
+                        <div class="project-overlay">
+                            <a href="Proyectos Data & AI Engineering/02-GSP192 Dataflow Qwik Start - Templates.html" target="_blank" class="project-link"><i class="fas fa-eye"></i></a>
+                        </div>
+                    </div>
+                    <div class="project-info">
+                        <span class="project-tag">Data & AI</span>
+                        <h3>Dataflow con Templates</h3>
+                        <p>Uso de plantillas predefinidas para ingesta de Pub/Sub a BigQuery</p>
+                        <div class="project-tech">
+                            <span>Dataflow</span><span>Pub/Sub</span><span>BigQuery</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 8. Stream Processing con Dataflow -->
+                <div class="project-card" data-category="data">
+                    <div class="project-image">
+                        <img src="img-stream-processing.jpg" alt="Stream Processing">
+                        <div class="project-overlay">
+                            <a href="Proyectos Data & AI Engineering/12-GSP903 Stream Processing with PubSub and Dataflow Qwik Start.html" target="_blank" class="project-link"><i class="fas fa-eye"></i></a>
+                        </div>
+                    </div>
+                    <div class="project-info">
+                        <span class="project-tag">Data & AI</span>
+                        <h3>Stream Processing con Dataflow</h3>
+                        <p>Ventanas fijas (FixedWindows) para agregación de datos en streaming</p>
+                        <div class="project-tech">
+                            <span>Dataflow</span><span>FixedWindows</span><span>GCS</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 9. IAM y Networking en Dataflow -->
+                <div class="project-card" data-category="data">
+                    <div class="project-image">
+                        <img src="img-iam-networking.jpg" alt="IAM Networking">
+                        <div class="project-overlay">
+                            <a href="Proyectos Data & AI Engineering/14-GSP1134 Setup IAM and Networking for your Dataflow Jobs.html" target="_blank" class="project-link"><i class="fas fa-eye"></i></a>
+                        </div>
+                    </div>
+                    <div class="project-info">
+                        <span class="project-tag">Data & AI</span>
+                        <h3>IAM y Networking en Dataflow</h3>
+                        <p>Configuración de roles y Private Google Access para jobs de Dataflow</p>
+                        <div class="project-tech">
+                            <span>IAM</span><span>Networking</span><span>Dataflow</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 10. Streaming con Apache Kafka -->
+                <div class="project-card" data-category="data">
+                    <div class="project-image">
+                        <img src="img-kafka-streaming.jpg" alt="Kafka Streaming">
+                        <div class="project-overlay">
+                            <a href="Proyectos Data & AI Engineering/13-GSP730 Creating a Streaming Data Pipeline With Apache Kafka.html" target="_blank" class="project-link"><i class="fas fa-eye"></i></a>
+                        </div>
+                    </div>
+                    <div class="project-info">
+                        <span class="project-tag">Data & AI</span>
+                        <h3>Streaming con Apache Kafka</h3>
+                        <p>Pipeline de streaming con Kafka Streams y procesamiento en tiempo real</p>
+                        <div class="project-tech">
+                            <span>Kafka</span><span>Java</span><span>Streams</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 11. Transformaciones con Wrangler -->
+                <div class="project-card" data-category="data">
+                    <div class="project-image">
+                        <img src="img-wrangler-transformations.jpg" alt="Wrangler Transformations">
+                        <div class="project-overlay">
+                            <a href="Proyectos Data & AI Engineering/07-OCBL163 Building Transformations and Preparing Data with Wrangler in Cloud Data Fusion.html" target="_blank" class="project-link"><i class="fas fa-eye"></i></a>
+                        </div>
+                    </div>
+                    <div class="project-info">
+                        <span class="project-tag">Data & AI</span>
+                        <h3>Transformaciones con Wrangler</h3>
+                        <p>Preparación de datos con directivas CLI y enmascaramiento PII</p>
+                        <div class="project-tech">
+                            <span>Wrangler</span><span>Data Fusion</span><span>BigQuery</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 12. Primeros pasos con CDF -->
+                <div class="project-card" data-category="data">
+                    <div class="project-image">
+                        <img src="img-cdf-instance.jpg" alt="CDF Instance">
+                        <div class="project-overlay">
+                            <a href="Proyectos Data & AI Engineering/06-OCBL161 Data Fusion Instance.html" target="_blank" class="project-link"><i class="fas fa-eye"></i></a>
+                        </div>
+                    </div>
+                    <div class="project-info">
+                        <span class="project-tag">Data & AI</span>
+                        <h3>Primeros pasos con CDF</h3>
+                        <p>Creación de instancia, navegación UI y despliegue de pipeline de ejemplo</p>
+                        <div class="project-tech">
+                            <span>Data Fusion</span><span>Quickstart</span><span>BigQuery</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 13. Data Quality con Apache Spark -->
+                <div class="project-card" data-category="data">
+                    <div class="project-image">
+                        <img src="img-spark-dataquality.jpg" alt="Spark Data Quality">
+                        <div class="project-overlay">
+                            <a href="Proyectos Data & AI Engineering/03-Validate Data Quality for a Batch Data Pipeline using Serverless for Apache Spark.html" target="_blank" class="project-link"><i class="fas fa-eye"></i></a>
+                        </div>
+                    </div>
+                    <div class="project-info">
+                        <span class="project-tag">Data & AI</span>
+                        <h3>Data Quality con Apache Spark</h3>
+                        <p>Validación de datos batch y separación en DLQ usando Serverless Spark</p>
+                        <div class="project-tech">
+                            <span>PySpark</span><span>BigQuery</span><span>DLQ</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 14. ETL con Dataflow y BigQuery -->
+                <div class="project-card" data-category="data">
+                    <div class="project-image">
+                        <img src="img-etl-dataflow-bq.jpg" alt="ETL Dataflow BigQuery">
+                        <div class="project-overlay">
+                            <a href="Proyectos Data & AI Engineering/01-GSP207 Dataflow Qwik Start - Python.html" target="_blank" class="project-link"><i class="fas fa-eye"></i></a>
+                        </div>
+                    </div>
+                    <div class="project-info">
+                        <span class="project-tag">Data & AI</span>
+                        <h3>ETL con Dataflow y BigQuery</h3>
+                        <p>Procesamiento ETL con Apache Beam, Dataflow y BigQuery en Python</p>
+                        <div class="project-tech">
+                            <span>Apache Beam</span><span>Dataflow</span><span>BigQuery</span>
+                        </div>
+                    </div>
+                </div>
+
+
+                <!-- 1. Pipeline de Datos en Tiempo Real -->
+                <div class="project-card" data-category="data">
+                    <div class="project-image">
+                        <img src="img-pipeline.jpg" alt="Pipeline de Datos">
+                        <div class="project-overlay">
+                            <a href="Proyectos Data & AI Engineering/05-GSP290 ETL Processing on Google Cloud Using Dataflow and BigQuery (Python).html" target="_blank" class="project-link"><i class="fas fa-eye"></i></a>
+                        </div>
+                    </div>
+                    <div class="project-info">
+                        <span class="project-tag">Data & AI</span>
+                        <h3>Pipeline de Datos en Tiempo Real</h3>
+                        <p>Arquitectura de datos con AWS, Kafka y Spark para procesamiento en tiempo real</p>
+                        <div class="project-tech">
+                            <span>AWS</span><span>Kafka</span><span>Spark</span><span>Python</span>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- 2. Modelo Predictivo de Demanda -->
+                <div class="project-card" data-category="data">
+                    <div class="project-image">
+                        <img src="img-ml.jpg" alt="Modelo ML">
+                        <div class="project-overlay">
+                            <a href="Proyectos Data & AI Engineering/10-GSP1345 Apache Beam + Bigtable Enrich esports DLC Data.html" target="_blank" class="project-link"><i class="fas fa-eye"></i></a>
+                        </div>
+                    </div>
+                    <div class="project-info">
+                        <span class="project-tag">Data & AI</span>
+                        <h3>Modelo Predictivo de Demanda</h3>
+                        <p>Deep Learning para predicción de demanda con precisión del 95%</p>
+                        <div class="project-tech">
+                            <span>TensorFlow</span><span>PyTorch</span><span>GCP</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 3. Sistema de Visión por Computadora -->
+                <div class="project-card" data-category="data">
+                    <div class="project-image">
+                        <img src="img-computervision.jpg" alt="Computer Vision">
+                        <div class="project-overlay">
+                            <a href="Proyectos Data & AI Engineering/11-GSP1342 Stream E-sports Data with Pub Sub and BigQuery.html" target="_blank" class="project-link"><i class="fas fa-eye"></i></a>
+                        </div>
+                    </div>
+                    <div class="project-info">
+                        <span class="project-tag">Data & AI</span>
+                        <h3>Sistema de Visión por Computadora</h3>
+                        <p>Detección de objetos en tiempo real para control de calidad industrial</p>
+                        <div class="project-tech">
+                            <span>OpenCV</span><span>PyTorch</span><span>YOLO</span>
+                        </div>
+                    </div>
+                </div>
+
+
+                <!-- ========================================== -->
+                <!-- CATEGORÍA: SOFTWARE (1 tarjeta)            -->
+                <!-- ========================================== -->
+                
+                <!-- 15. ParkVision Software -->
+                <div class="project-card" data-category="software">
+                    <div class="project-image">
+                        <img src="img-parkvision.jpg" alt="ParkVision Software">
+                        <div class="project-overlay">
+                            <a href="Proyectos Software/ParkVision Software.html" target="_blank" class="project-link"><i class="fas fa-eye"></i></a>
+                        </div>
+                    </div>
+                    <div class="project-info">
+                        <span class="project-tag">Software</span>
+                        <h3>ParkVision Software</h3>
+                        <p>Sistema de gestión de estacionamientos con visión artificial y control en tiempo real</p>
+                        <div class="project-tech">
+                            <span>React</span><span>Node.js</span><span>OpenCV</span><span>MongoDB</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ========================================== -->
+                <!-- CATEGORÍA: INGENIERÍA CIVIL (2 tarjetas)   -->
+                <!-- ========================================== -->
+
+                <!-- 16. Nave Industrial Atlas - Construcción -->
+                <div class="project-card" data-category="civil">
+                    <div class="project-image">
+                        <img src="img-nave-atlas-construccion.jpg" alt="Nave Industrial Construcción">
+                        <div class="project-overlay">
+                            <a href="Proyectos Ingenieria Civil/NaveIndustrialAtlasConstruccion.html" target="_blank" class="project-link"><i class="fas fa-eye"></i></a>
+                        </div>
+                    </div>
+                    <div class="project-info">
+                        <span class="project-tag">Ingeniería Civil</span>
+                        <h3>Nave Industrial Atlas (Construcción)</h3>
+                        <p>Gestión de construcción y supervisión de obra para nave industrial</p>
+                        <div class="project-tech">
+                            <span>Gestión</span><span>Costos</span><span>Supervisión</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 17. Nave Industrial Atlas - Estructural -->
+                <div class="project-card" data-category="civil">
+                    <div class="project-image">
+                        <img src="img-nave-atlas-estructural.jpg" alt="Nave Industrial Estructural">
+                        <div class="project-overlay">
+                            <a href="Proyectos Ingenieria Civil/NaveIndustrialAtlasEstructural.html" target="_blank" class="project-link"><i class="fas fa-eye"></i></a>
+                        </div>
+                    </div>
+                    <div class="project-info">
+                        <span class="project-tag">Ingeniería Civil</span>
+                        <h3>Nave Industrial Atlas (Estructural)</h3>
+                        <p>Diseño estructural y cálculo de nave industrial con SAP2000</p>
+                        <div class="project-tech">
+                            <span>SAP2000</span><span>AutoCAD</span><span>Revit</span>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+            
+            <div class="projects-cta">
+                <a href="#" class="btn btn-primary">
+                    <i class="fab fa-github"></i> Ver más en GitHub
+                </a>
+            </div>
+        </div>
+    </section>
+
+    <!-- ==================== CERTIFICATIONS SECTION ==================== -->
+    <section id="certifications" class="certifications section-padding">
+        <div class="container">
+            <div class="section-header">
+                <span class="section-tag">Certificaciones</span>
+                <h2 class="section-title">Formación & <span class="highlight">Acreditaciones</span></h2>
+                <div class="section-line"></div>
+                <p class="section-subtitle">
+                    Compromiso con la excelencia y el aprendizaje continuo
+                </p>
+            </div>
+            
+            <div class="certifications-grid">
+                
+                <!-- 1. Machine Learning Engineer -->
+                <a href="Certificaciones/Coursera%201AHTYJZUSHE8%20Preparing%20for%20Google%20Cloud%20Certification%20Machine%20Learning%20Engineer.pdf" target="_blank" class="cert-card" style="text-decoration: none;">
+                    <div class="cert-icon">
+                        <i class="fas fa-aws"></i>
+                    </div>
+                    <h4>Preparing for Google Cloud Certification: Machine Learning Engineer</h4>
+                    <p>Google Cloud</p>
+                    <span class="cert-year">Certificación</span>
+                </a>
+
+                <!-- 2. Google AI -->
+                <a href="Certificaciones/Coursera%201HIL94UJ2WFS%20Google%20AI.pdf" target="_blank" class="cert-card" style="text-decoration: none;">
+                    <div class="cert-icon">
+                        <i class="fas fa-robot"></i>
+                    </div>
+                    <h4>Google AI</h4>
+                    <p>Google</p>
+                    <span class="cert-year">Certificación</span>
+                </a>
+
+                <!-- 3. Advanced Machine Learning on Google Cloud -->
+                <a href="Certificaciones/Coursera%201M69N2G2Q2M6%20Advanced%20Machine%20Learning%20on%20Google%20Cloud.pdf" target="_blank" class="cert-card" style="text-decoration: none;">
+                    <div class="cert-icon">
+                        <i class="fas fa-cloud"></i>
+                    </div>
+                    <h4>Advanced Machine Learning on Google Cloud</h4>
+                    <p>Google Cloud</p>
+                    <span class="cert-year">Certificación</span>
+                </a>
+
+                <!-- 4. IBM iOS and Android -->
+                <a href="Certificaciones/Coursera%201MSRIQFY945B%20IBM%20iOS%20and%20Android%20.pdf" target="_blank" class="cert-card" style="text-decoration: none;">
+                    <div class="cert-icon">
+                        <i class="fas fa-mobile-alt"></i>
+                    </div>
+                    <h4>IBM iOS and Android</h4>
+                    <p>IBM</p>
+                    <span class="cert-year">Certificación</span>
+                </a>
+
+                <!-- 5. IBM Java Developer -->
+                <a href="Certificaciones/Coursera%201OJCFFHB65H3%20IBM%20Java%20Developer.pdf" target="_blank" class="cert-card" style="text-decoration: none;">
+                    <div class="cert-icon">
+                        <i class="fab fa-java"></i>
+                    </div>
+                    <h4>IBM Java Developer</h4>
+                    <p>IBM</p>
+                    <span class="cert-year">Certificación</span>
+                </a>
+
+                <!-- 6. Architecting with Google Kubernetes Engine -->
+                <a href="Certificaciones/Coursera%201RF6XTF2EFPG%20Architecting%20with%20Google%20Kubernetes%20Engine.pdf" target="_blank" class="cert-card" style="text-decoration: none;">
+                    <div class="cert-icon">
+                        <i class="fas fa-cubes"></i>
+                    </div>
+                    <h4>Architecting with Google Kubernetes Engine</h4>
+                    <p>Google Cloud</p>
+                    <span class="cert-year">Certificación</span>
+                </a>
+
+                <!-- 7. Google Business Intelligence -->
+                <a href="Certificaciones/Coursera%202D8IY8NMS93J%20%20Google%20Business%20Intelligence%20Certificate.pdf" target="_blank" class="cert-card" style="text-decoration: none;">
+                    <div class="cert-icon">
+                        <i class="fas fa-chart-bar"></i>
+                    </div>
+                    <h4>Google Business Intelligence Certificate</h4>
+                    <p>Google</p>
+                    <span class="cert-year">Certificación</span>
+                </a>
+
+                <!-- 8. Google Data Analytics -->
+                <a href="Certificaciones/Coursera%203FNFOJEPWK9R%20Google%20Data%20Analytics.pdf" target="_blank" class="cert-card" style="text-decoration: none;">
+                    <div class="cert-icon">
+                        <i class="fas fa-chart-line"></i>
+                    </div>
+                    <h4>Google Data Analytics</h4>
+                    <p>Google</p>
+                    <span class="cert-year">Certificación</span>
+                </a>
+
+                <!-- 9. IBM AI Engineering -->
+                <a href="Certificaciones/Coursera%204RYNQWBB6MJ3%20IBM%20AI%20Engineering.pdf" target="_blank" class="cert-card" style="text-decoration: none;">
+                    <div class="cert-icon">
+                        <i class="fas fa-brain"></i>
+                    </div>
+                    <h4>IBM AI Engineering</h4>
+                    <p>IBM</p>
+                    <span class="cert-year">Certificación</span>
+                </a>
+
+                <!-- 10. IBM Deep Learning -->
+                <a href="Certificaciones/Coursera%206ZAQA414WYGM%20IBM%20Deep%20Learning%20with%20.pdf" target="_blank" class="cert-card" style="text-decoration: none;">
+                    <div class="cert-icon">
+                        <i class="fas fa-network-wired"></i>
+                    </div>
+                    <h4>IBM Deep Learning</h4>
+                    <p>IBM</p>
+                    <span class="cert-year">Certificación</span>
+                </a>
+
+                <!-- 11. IBM and ISC2 -->
+                <a href="Certificaciones/Coursera%2096V27DSHZ89G%20IBM%20and%20ISC2.pdf" target="_blank" class="cert-card" style="text-decoration: none;">
+                    <div class="cert-icon">
+                        <i class="fas fa-shield-alt"></i>
+                    </div>
+                    <h4>IBM and ISC2 Cybersecurity</h4>
+                    <p>IBM / ISC2</p>
+                    <span class="cert-year">Certificación</span>
+                </a>
+
+                <!-- 12. IBM Data Engineer -->
+                <a href="Certificaciones/Coursera%2098AXPVJLF86L%20IBM%20Data%20Engineer.pdf" target="_blank" class="cert-card" style="text-decoration: none;">
+                    <div class="cert-icon">
+                        <i class="fas fa-database"></i>
+                    </div>
+                    <h4>IBM Data Engineer</h4>
+                    <p>IBM</p>
+                    <span class="cert-year">Certificación</span>
+                </a>
+
+                <!-- 13. IBM Data Architecture -->
+                <a href="Certificaciones/Coursera%209GTDD7520YPH%20IBM%20Data%20Architecture.pdf" target="_blank" class="cert-card" style="text-decoration: none;">
+                    <div class="cert-icon">
+                        <i class="fas fa-sitemap"></i>
+                    </div>
+                    <h4>IBM Data Architecture</h4>
+                    <p>IBM</p>
+                    <span class="cert-year">Certificación</span>
+                </a>
+
+                <!-- 14. IBM Data Warehouse Engineer -->
+                <a href="Certificaciones/Coursera%20BGCNIQ54NTDV%20IBM%20Data%20Warehouse%20Engineer.pdf" target="_blank" class="cert-card" style="text-decoration: none;">
+                    <div class="cert-icon">
+                        <i class="fas fa-server"></i>
+                    </div>
+                    <h4>IBM Data Warehouse Engineer</h4>
+                    <p>IBM</p>
+                    <span class="cert-year">Certificación</span>
+                </a>
+
+                <!-- 15. IBM Relational Database Administrator with GenAI -->
+                <a href="Certificaciones/Coursera%20DBCN82AMXI73%20IBM%20Relational%20Database%20Administrator%20with%20GenAI.pdf" target="_blank" class="cert-card" style="text-decoration: none;">
+                    <div class="cert-icon">
+                        <i class="fas fa-user-cog"></i>
+                    </div>
+                    <h4>IBM Relational Database Administrator with GenAI</h4>
+                    <p>IBM</p>
+                    <span class="cert-year">Certificación</span>
+                </a>
+
+                <!-- 16. IBM Relational Database -->
+                <a href="Certificaciones/Coursera%20DBCN82AMXI73%20IBM%20Relational%20Database.pdf" target="_blank" class="cert-card" style="text-decoration: none;">
+                    <div class="cert-icon">
+                        <i class="fas fa-table"></i>
+                    </div>
+                    <h4>IBM Relational Database</h4>
+                    <p>IBM</p>
+                    <span class="cert-year">Certificación</span>
+                </a>
+
+                <!-- 17. Google Cloud Cybersecurity -->
+                <a href="Certificaciones/Coursera%20DPL3U706E3LC%20Google%20Cloud%20Cybersecurity.pdf" target="_blank" class="cert-card" style="text-decoration: none;">
+                    <div class="cert-icon">
+                        <i class="fas fa-lock"></i>
+                    </div>
+                    <h4>Google Cloud Cybersecurity</h4>
+                    <p>Google Cloud</p>
+                    <span class="cert-year">Certificación</span>
+                </a>
+
+                <!-- 18. Google IT Support -->
+                <a href="Certificaciones/Coursera%20J0N76SJECN3N%20Google%20IT%20Support.pdf" target="_blank" class="cert-card" style="text-decoration: none;">
+                    <div class="cert-icon">
+                        <i class="fas fa-headset"></i>
+                    </div>
+                    <h4>Google IT Support</h4>
+                    <p>Google</p>
+                    <span class="cert-year">Certificación</span>
+                </a>
+
+                <!-- 19. Google AI (2) -->
+                <a href="Certificaciones/Coursera%20JKT2YXDTMEKQ%20Google%20AI.pdf" target="_blank" class="cert-card" style="text-decoration: none;">
+                    <div class="cert-icon">
+                        <i class="fas fa-robot"></i>
+                    </div>
+                    <h4>Google AI</h4>
+                    <p>Google</p>
+                    <span class="cert-year">Certificación</span>
+                </a>
+
+                <!-- 20. Machine Learning Operations (MLOps) on Google Cloud -->
+                <a href="Certificaciones/Coursera%20KZD56N3LILCG%20Machine%20Learning%20Operations%20(MLOps)%20on%20Google%20Cloud.pdf" target="_blank" class="cert-card" style="text-decoration: none;">
+                    <div class="cert-icon">
+                        <i class="fas fa-cogs"></i>
+                    </div>
+                    <h4>Machine Learning Operations (MLOps) on Google Cloud</h4>
+                    <p>Google Cloud</p>
+                    <span class="cert-year">Certificación</span>
+                </a>
+
+                <!-- 21. Google Cloud Digital Leader Training -->
+                <a href="Certificaciones/Coursera%20LECP725JZ9QD%20Google%20Cloud%20Digital%20Leader%20Training.pdf" target="_blank" class="cert-card" style="text-decoration: none;">
+                    <div class="cert-icon">
+                        <i class="fas fa-user-tie"></i>
+                    </div>
+                    <h4>Google Cloud Digital Leader Training</h4>
+                    <p>Google Cloud</p>
+                    <span class="cert-year">Certificación</span>
+                </a>
+
+                <!-- 22. IBM Data Science -->
+                <a href="Certificaciones/Coursera%20MF2PPOC2DJ9T%20IBM%20Data%20Science.pdf" target="_blank" class="cert-card" style="text-decoration: none;">
+                    <div class="cert-icon">
+                        <i class="fas fa-flask"></i>
+                    </div>
+                    <h4>IBM Data Science</h4>
+                    <p>IBM</p>
+                    <span class="cert-year">Certificación</span>
+                </a>
+
+                <!-- 23. Google Cloud Database Engineer -->
+                <a href="Certificaciones/Coursera%20MJ59QDZSLI18%20Google%20Cloud%20Database%20Engineer.pdf" target="_blank" class="cert-card" style="text-decoration: none;">
+                    <div class="cert-icon">
+                        <i class="fas fa-database"></i>
+                    </div>
+                    <h4>Google Cloud Database Engineer</h4>
+                    <p>Google Cloud</p>
+                    <span class="cert-year">Certificación</span>
+                </a>
+
+                <!-- 24. IBM Machine Learning -->
+                <a href="Certificaciones/Coursera%20NGGUA29ZSPEA%20IBM%20Machine%20Learning.pdf" target="_blank" class="cert-card" style="text-decoration: none;">
+                    <div class="cert-icon">
+                        <i class="fas fa-brain"></i>
+                    </div>
+                    <h4>IBM Machine Learning</h4>
+                    <p>IBM</p>
+                    <span class="cert-year">Certificación</span>
+                </a>
+
+                <!-- 25. Developing APIs with Google Cloud's Apigee API Platform -->
+                <a href="Certificaciones/Coursera%20ONCHUNS93E25%20Developing%20APIs%20with%20Google%20Cloud's%20Apigee%20API%20Platform.pdf" target="_blank" class="cert-card" style="text-decoration: none;">
+                    <div class="cert-icon">
+                        <i class="fas fa-plug"></i>
+                    </div>
+                    <h4>Developing APIs with Google Cloud's Apigee API Platform</h4>
+                    <p>Google Cloud</p>
+                    <span class="cert-year">Certificación</span>
+                </a>
+
+                <!-- 26. IBM Full Stack Software -->
+                <a href="Certificaciones/Coursera%20PNHLBXFY2DAI%20IBM%20Full%20Stack%20Software.pdf" target="_blank" class="cert-card" style="text-decoration: none;">
+                    <div class="cert-icon">
+                        <i class="fas fa-layer-group"></i>
+                    </div>
+                    <h4>IBM Full Stack Software</h4>
+                    <p>IBM</p>
+                    <span class="cert-year">Certificación</span>
+                </a>
+
+                <!-- 27. IBM DevOps and Software -->
+                <a href="Certificaciones/Coursera%20RCKUU4OLYSUW%20IBM%20DevOps%20and%20Software.pdf" target="_blank" class="cert-card" style="text-decoration: none;">
+                    <div class="cert-icon">
+                        <i class="fas fa-infinity"></i>
+                    </div>
+                    <h4>IBM DevOps and Software</h4>
+                    <p>IBM</p>
+                    <span class="cert-year">Certificación</span>
+                </a>
+
+                <!-- 28. IBM Back-End -->
+                <a href="Certificaciones/Coursera%20SDF8AXD72HI3%20IBM%20Back-End.pdf" target="_blank" class="cert-card" style="text-decoration: none;">
+                    <div class="cert-icon">
+                        <i class="fas fa-server"></i>
+                    </div>
+                    <h4>IBM Back-End</h4>
+                    <p>IBM</p>
+                    <span class="cert-year">Certificación</span>
+                </a>
+
+                <!-- 29. AI Infrastructure Google Cloud -->
+                <a href="Certificaciones/Coursera%20TKKJ4EXEEAFI%20AI%20Infrastructure%20Google%20Cloud.pdf" target="_blank" class="cert-card" style="text-decoration: none;">
+                    <div class="cert-icon">
+                        <i class="fas fa-microchip"></i>
+                    </div>
+                    <h4>AI Infrastructure Google Cloud</h4>
+                    <p>Google Cloud</p>
+                    <span class="cert-year">Certificación</span>
+                </a>
+
+                <!-- 30. IBM Applied DevOps -->
+                <a href="Certificaciones/Coursera%20UUIOYHG0PTMF%20IBM%20Applied%20DevOps.pdf" target="_blank" class="cert-card" style="text-decoration: none;">
+                    <div class="cert-icon">
+                        <i class="fas fa-tools"></i>
+                    </div>
+                    <h4>IBM Applied DevOps</h4>
+                    <p>IBM</p>
+                    <span class="cert-year">Certificación</span>
+                </a>
+
+                <!-- 31. Google IT Automation with Python -->
+                <a href="Certificaciones/Coursera%20V5S253SDJVAA%20Google%20IT%20Automation%20with%20Python.pdf" target="_blank" class="cert-card" style="text-decoration: none;">
+                    <div class="cert-icon">
+                        <i class="fab fa-python"></i>
+                    </div>
+                    <h4>Google IT Automation with Python</h4>
+                    <p>Google</p>
+                    <span class="cert-year">Certificación</span>
+                </a>
+
+                <!-- 32. Google Container Workload Management and Production Operations -->
+                <a href="Certificaciones/Coursera%20W1GE5NU68P7Z%20Google%20Container%20Workload%20Management%20and%20Production%20Operations.pdf" target="_blank" class="cert-card" style="text-decoration: none;">
+                    <div class="cert-icon">
+                        <i class="fab fa-docker"></i>
+                    </div>
+                    <h4>Google Container Workload Management and Production Operations</h4>
+                    <p>Google Cloud</p>
+                    <span class="cert-year">Certificación</span>
+                </a>
+
+                <!-- 33. Google Network Security -->
+                <a href="Certificaciones/Coursera%20WLHQ4VHZ6UVL%20Google%20Network%20Security.pdf" target="_blank" class="cert-card" style="text-decoration: none;">
+                    <div class="cert-icon">
+                        <i class="fas fa-network-wired"></i>
+                    </div>
+                    <h4>Google Network Security</h4>
+                    <p>Google Cloud</p>
+                    <span class="cert-year">Certificación</span>
+                </a>
+
+                <!-- 34. IBM Data Analyst -->
+                <a href="Certificaciones/Coursera%20WSWVPFDYZNQX%20IBM%20Data%20Analyst.pdf" target="_blank" class="cert-card" style="text-decoration: none;">
+                    <div class="cert-icon">
+                        <i class="fas fa-chart-pie"></i>
+                    </div>
+                    <h4>IBM Data Analyst</h4>
+                    <p>IBM</p>
+                    <span class="cert-year">Certificación</span>
+                </a>
+
+                <!-- 35. IBM Business Intelligence (BI) Analyst -->
+                <a href="Certificaciones/Coursera%20WW3M6Z1P92AY%20IBM%20Business%20Intelligence%20(BI)%20Analyst.pdf" target="_blank" class="cert-card" style="text-decoration: none;">
+                    <div class="cert-icon">
+                        <i class="fas fa-chart-bar"></i>
+                    </div>
+                    <h4>IBM Business Intelligence (BI) Analyst</h4>
+                    <p>IBM</p>
+                    <span class="cert-year">Certificación</span>
+                </a>
+
+                <!-- 36. IBM RAG and Agentic AI -->
+                <a href="Certificaciones/Coursera%20YEO55MOCAF3F%20IBM%20RAG%20and%20Agentic%20AI.pdf" target="_blank" class="cert-card" style="text-decoration: none;">
+                    <div class="cert-icon">
+                        <i class="fas fa-robot"></i>
+                    </div>
+                    <h4>IBM RAG and Agentic AI</h4>
+                    <p>IBM</p>
+                    <span class="cert-year">Certificación</span>
+                </a>
+
+                <!-- 37. IBM JavaScript Backend -->
+                <a href="Certificaciones/Coursera%20YGG0H5FOVRGM%20IBM%20JavaScript%20Backend.pdf" target="_blank" class="cert-card" style="text-decoration: none;">
+                    <div class="cert-icon">
+                        <i class="fab fa-js"></i>
+                    </div>
+                    <h4>IBM JavaScript Backend</h4>
+                    <p>IBM</p>
+                    <span class="cert-year">Certificación</span>
+                </a>
+
+                <!-- 38. IBM IT Scrum Master -->
+                <a href="Certificaciones/Coursera%20ZNM85HWPJZ3A%20IBM%20IT%20Scrum%20Master.pdf" target="_blank" class="cert-card" style="text-decoration: none;">
+                    <div class="cert-icon">
+                        <i class="fas fa-users-cog"></i>
+                    </div>
+                    <h4>IBM IT Scrum Master</h4>
+                    <p>IBM</p>
+                    <span class="cert-year">Certificación</span>
+                </a>
+
+                <!-- 39. Google People Management Essentials -->
+                <a href="Certificaciones/Coursera%20ZWAT1HQ7Q801%20Google%20People%20Management%20Essentials.pdf" target="_blank" class="cert-card" style="text-decoration: none;">
+                    <div class="cert-icon">
+                        <i class="fas fa-user-friends"></i>
+                    </div>
+                    <h4>Google People Management Essentials</h4>
+                    <p>Google</p>
+                    <span class="cert-year">Certificación</span>
+                </a>
+
+            </div>
+        </div>
+    </section>
+
+    <!-- ==================== TESTIMONIALS SECTION ==================== -->
+    <section id="testimonials" class="testimonials section-padding">
+        <div class="container">
+            <div class="section-header">
+                <span class="section-tag">Testimonios</span>
+                <h2 class="section-title">Lo Que Dicen <span class="highlight">Mis Clientes</span></h2>
+                <div class="section-line"></div>
+                <p class="section-subtitle">
+                    Experiencias de quienes han confiado en mi trabajo
+                </p>
+            </div>
+            
+            <div class="swiper testimonials-slider">
+                <div class="swiper-wrapper">
+                    <div class="swiper-slide">
+                        <div class="testimonial-card">
+                            <div class="testimonial-quote">
+                                <i class="fas fa-quote-left"></i>
+                            </div>
+                            <p class="testimonial-text">
+                                "Su enfoque multidisciplinario nos permitió resolver problemas complejos que ningún otro profesional pudo. La combinación de data science e ingeniería civil fue clave para nuestro proyecto."
+                            </p>
+                            <div class="testimonial-author">
+                                <div class="author-avatar">
+                                    <span>JD</span>
+                                </div>
+                                <div class="author-info">
+                                    <h4>Juan Delgado</h4>
+                                    <p>CEO, Constructora XYZ</p>
+                                </div>
+                            </div>
+                            <div class="testimonial-stars">
+                                <i class="fas fa-star"></i>
+                                <i class="fas fa-star"></i>
+                                <i class="fas fa-star"></i>
+                                <i class="fas fa-star"></i>
+                                <i class="fas fa-star"></i>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="swiper-slide">
+                        <div class="testimonial-card">
+                            <div class="testimonial-quote">
+                                <i class="fas fa-quote-left"></i>
+                            </div>
+                            <p class="testimonial-text">
+                                "La arquitectura de datos que implementó en AWS transformó completamente nuestra operación. Pasamos de reportes mensuales a análisis en tiempo real con una precisión impresionante."
+                            </p>
+                            <div class="testimonial-author">
+                                <div class="author-avatar">
+                                    <span>MR</span>
+                                </div>
+                                <div class="author-info">
+                                    <h4>María Rodríguez</h4>
+                                    <p>CTO, TechData Solutions</p>
+                                </div>
+                            </div>
+                            <div class="testimonial-stars">
+                                <i class="fas fa-star"></i>
+                                <i class="fas fa-star"></i>
+                                <i class="fas fa-star"></i>
+                                <i class="fas fa-star"></i>
+                                <i class="fas fa-star"></i>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="swiper-slide">
+                        <div class="testimonial-card">
+                            <div class="testimonial-quote">
+                                <i class="fas fa-quote-left"></i>
+                            </div>
+                            <p class="testimonial-text">
+                                "La aplicación que desarrolló para nuestra empresa no solo cumplió con todos los requisitos, sino que superó nuestras expectativas en términos de rendimiento y experiencia de usuario."
+                            </p>
+                            <div class="testimonial-author">
+                                <div class="author-avatar">
+                                    <span>CP</span>
+                                </div>
+                                <div class="author-info">
+                                    <h4>Carlos Pérez</h4>
+                                    <p>Director de Operaciones, InnoTech</p>
+                                </div>
+                            </div>
+                            <div class="testimonial-stars">
+                                <i class="fas fa-star"></i>
+                                <i class="fas fa-star"></i>
+                                <i class="fas fa-star"></i>
+                                <i class="fas fa-star"></i>
+                                <i class="fas fa-star"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="swiper-pagination"></div>
+            </div>
+        </div>
+    </section>
+
+    <!-- ==================== CONTACT SECTION ==================== -->
+    <section id="contact" class="contact section-padding">
+        <div class="container">
+            <div class="section-header">
+                <span class="section-tag">Contacto</span>
+                <h2 class="section-title">Hablemos de tu <span class="highlight">Próximo Proyecto</span></h2>
+                <div class="section-line"></div>
+                <p class="section-subtitle">
+                    ¿Listo para transformar tu idea en realidad? Contáctame y hagamos algo increíble juntos
+                </p>
+            </div>
+            
+            <div class="contact-wrapper">
+                <div class="contact-info">
+                    <div class="contact-card">
+                        <div class="contact-icon">
+                            <i class="fas fa-envelope"></i>
+                        </div>
+                        <h4>Email</h4>
+                        <p>fler.rdz87@gmail.com</p>
+                        <a href="mailto:tu.email@ejemplo.com">Enviar mensaje</a>
+                    </div>
+                    
+                    <div class="contact-card">
+                        <div class="contact-icon">
+                            <i class="fas fa-phone"></i>
+                        </div>
+                        <h4>Teléfono</h4>
+                        <p>+52 812 406 2292</p>
+                        <a href="tel:+XXXXXXXXXXX">Llamar ahora</a>
+                    </div>
+                    
+                    <div class="contact-card">
+                        <div class="contact-icon">
+                            <i class="fas fa-map-marker-alt"></i>
+                        </div>
+                        <h4>Ubicación</h4>
+                        <p>CDMX, México</p>
+                        <a href="#" target="_blank">Ver en mapa</a>
+                    </div>
+                    
+                    <div class="contact-card">
+                        <div class="contact-icon">
+                            <i class="fas fa-calendar-check"></i>
+                        </div>
+                        <h4>Disponibilidad</h4>
+                        <p>Lun - Vie: 9:00 - 18:00</p>
+                        <span class="available-badge">Disponible para proyectos</span>
+                    </div>
+                </div>
+                
+                <div class="contact-form-wrapper">
+                    <form id="contactForm" class="contact-form">
+                        <div class="form-group">
+                            <label for="name">Nombre completo</label>
+                            <input type="text" id="name" name="name" placeholder="Eric Rodriguez" required>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="email">Email</label>
+                            <input type="email" id="email" name="email" placeholder="tu@email.com" required>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="subject">Asunto</label>
+                            <input type="text" id="subject" name="subject" placeholder="¿Sobre qué quieres hablar?">
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="message">Mensaje</label>
+                            <textarea id="message" name="message" rows="5" placeholder="Cuéntame sobre tu proyecto..." required></textarea>
+                        </div>
+                        
+                        <button type="submit" class="btn btn-primary btn-full">
+                            <i class="fas fa-paper-plane"></i> Enviar mensaje
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- ==================== FOOTER ==================== -->
+    <footer class="footer">
+        <div class="container">
+            <div class="footer-content">
+                <div class="footer-brand">
+                    <img src="logo.svg" alt="Logo" class="footer-logo">
+                    <h3>Eric Rodriguez</h3>
+                    <p>Ingeniero de Datos & AI · Civil · Software</p>
+                    <div class="footer-social">
+                        <a href="#" target="_blank"><i class="fab fa-linkedin-in"></i></a>
+                        <a href="#" target="_blank"><i class="fab fa-github"></i></a>
+                        <a href="#" target="_blank"><i class="fab fa-youtube"></i></a>
+                        <a href="#" target="_blank"><i class="fab fa-twitter"></i></a>
+                    </div>
+                </div>
+                
+                <div class="footer-links">
+                    <h4>Navegación</h4>
+                    <ul>
+                        <li><a href="#about">Sobre Mí</a></li>
+                        <li><a href="#services">Servicios</a></li>
+                        <li><a href="#projects">Proyectos</a></li>
+                        <li><a href="#certifications">Certificaciones</a></li>
+                        <li><a href="#contact">Contacto</a></li>
+                    </ul>
+                </div>
+                
+                <div class="footer-newsletter">
+                    <h4>Conéctate</h4>
+                    <p>Recibe actualizaciones sobre mis proyectos y novedades</p>
+                    <form id="newsletterForm" class="newsletter-form">
+                        <input type="email" placeholder="Tu email" required>
+                        <button type="submit"><i class="fas fa-arrow-right"></i></button>
+                    </form>
+                </div>
+            </div>
+            
+            <div class="footer-bottom">
+                <p>&copy; 2024 Eric Rodriguez. Todos los derechos reservados.</p>
+                <p>Diseñado con <i class="fas fa-heart"></i> y mucha tecnología</p>
+            </div>
+        </div>
+    </footer>
+
+    <!-- ==================== BACK TO TOP ==================== -->
+    <button id="backToTop" class="back-to-top">
+        <i class="fas fa-chevron-up"></i>
+    </button>
+
+    <!-- ==================== SCRIPTS ==================== -->
+    <!-- Swiper JS -->
+    <script src="https://cdn.jsdelivr.net/npm/swiper@11/swiper-bundle.min.js"></script>
+    
+    <!-- Particles JS -->
+    <script src="https://cdn.jsdelivr.net/npm/particles.js"></script>
+    
+    <!-- Typed JS -->
+    <script src="https://cdn.jsdelivr.net/npm/typed.js@2.0.12"></script>
+    
+    <!-- ScrollReveal JS -->
+    <script src="https://cdn.jsdelivr.net/npm/scrollreveal@4.0.9/dist/scrollreveal.min.js"></script>
+    
+    <!-- Custom Script -->
+    <script src="script.js"></script>
+</body>
+</html>
